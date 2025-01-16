@@ -6,24 +6,31 @@ import re
 
 app = Flask(__name__)
 
-def parse_questions(data):
-    result = []
-    for idx, question in enumerate(data['data'][0]['test'], start=1):
-        question_id = question['id']
-        question_text = question['question_direction']
-        answers = question['answer_option']
+def parse_questions(files, id_filter=None):
+    result = {}
+    idx = 1
+    for file in files:
+        if file:
+            data = json.load(file)
+            for question in data['data'][0]['test']:
+                question_id = question['id']
+                if id_filter and question_id != id_filter:
+                    continue
+                question_text = question['question_direction']
+                answers = question['answer_option']
 
-        question_cleaned = clean_html(question_text)
-        answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
+                question_cleaned = clean_html(question_text)
+                answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
 
-        formatted_question = {
-            "ID": question_id,
-            "Câu": f"Câu {idx}: {question_cleaned}",
-            "Đáp án": answer_cleaned
-        }
-        result.append(formatted_question)
-
-    return result
+                formatted_question = {
+                    "ID": question_id,
+                    "Câu": f"Câu {idx}: {question_cleaned}",
+                    "Đáp án": answer_cleaned
+                }
+                if question_id not in result:
+                    result[question_id] = formatted_question
+                idx += 1
+    return list(result.values())
 
 def clean_html(raw_html):
     cleanr = re.compile('<.*?>')
@@ -33,13 +40,20 @@ def clean_html(raw_html):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    questions = []
+    questions = {}
+    idx = 1
     if request.method == 'POST':
-        file = request.files['file']
-        if file:
-            data = json.load(file)
-            questions = parse_questions(data)
-    return render_template('index.html', questions=questions)
+        files = request.files.getlist('file')  # Lấy danh sách tệp được chọn
+        id_filter = request.form.get('id')  # Lấy giá trị ID từ form
+        for file in files:
+            if file:
+                questions_file = parse_questions([file], id_filter)  # Thêm câu hỏi vào danh sách
+                for question in questions_file:
+                    if question['ID'] not in questions:
+                        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ')[1]}"
+                        questions[question['ID']] = question
+                        idx += 1
+    return render_template('index.html', questions=list(questions.values()), total_questions=len(questions))
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường

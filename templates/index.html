@@ -7,12 +7,13 @@
 <body>
     <h1>Nhập tệp JSON</h1>
     <form method="post" enctype="multipart/form-data">
-        <input type="file" name="file" required>
+        <input type="file" name="file" multiple="multiple" required>
         <button type="submit">Tải lên</button>
     </form>
 
     {% if questions %}
         <h2>Các câu hỏi đã phân tích:</h2>
+        <p>Tổng số câu hỏi: {{ total_questions }}</p>
         <ul>
             {% for q in questions %}
                 <li>
