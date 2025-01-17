@@ -1,8 +1,7 @@
 import os
-
-from flask import Flask, render_template, request
 import json
 import re
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
@@ -11,7 +10,13 @@ def parse_questions(files, id_filter=None):
     idx = 1
     for file in files:
         if file:
-            data = json.load(file)
+            if file.filename.endswith('.txt'):
+                # Đọc file txt
+                content = file.read().decode('utf-8')
+                data = json.loads(content)
+            else:
+                # Đọc file json
+                data = json.load(file)
             for question in data['data'][0]['test']:
                 question_id = question['id']
                 if id_filter and question_id != id_filter:
@@ -47,12 +52,13 @@ def index():
         id_filter = request.form.get('id')  # Lấy giá trị ID từ form
         for file in files:
             if file:
-                questions_file = parse_questions([file], id_filter)  # Thêm câu hỏi vào danh sách
-                for question in questions_file:
-                    if question['ID'] not in questions:
-                        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ')[1]}"
-                        questions[question['ID']] = question
-                        idx += 1
+                if file.filename.endswith('.txt') or file.filename.endswith('.json'):
+                    questions_file = parse_questions([file], id_filter)  # Thêm câu hỏi vào danh sách
+                    for question in questions_file:
+                        if question['ID'] not in questions:
+                            question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ')[1]}"
+                            questions[question['ID']] = question
+                            idx += 1
     return render_template('index.html', questions=list(questions.values()), total_questions=len(questions))
 
 if __name__ == "__main__":
