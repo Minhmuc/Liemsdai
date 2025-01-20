@@ -2,32 +2,92 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Parse Questions</title>
+    <title>LMS Licker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .content li {
+            margin-bottom: 10px;
+        }
+        .content li strong {
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Nhập tệp JSON/txt</h1>
-    <form method="post" enctype="multipart/form-data">
-        <input type="file" name="file" multiple="multiple" required>
-        <button type="submit">Tải lên</button>
-    </form>
-
-    {% if questions %}
-        <h2>Các câu hỏi đã phân tích:</h2>
-        <p>Tổng số câu hỏi: {{ total_questions }}</p>
-        <ul>
-            {% for q in questions %}
-                <li>
-                    <strong>ID:</strong> {{ q.ID }}<br>
-                    <strong>{{ q.Câu }}</strong><br>
-                    <strong>Đáp án:</strong>
-                    <ul>
-                        {% for key, value in q['Đáp án'].items() %}
-                            <li>{{ key }}. {{ value }}</li>
-                        {% endfor %}
-                    </ul>
-                </li>
-            {% endfor %}
-        </ul>
-    {% endif %}
+    <div class="container">
+        <div class="header">
+            <h1>LMS Licker</h1>
+        </div>
+        <div class="content">
+            <h2>Nhập tệp JSON/txt</h2>
+            <form method="post" enctype="multipart/form-data">
+                <input type="file" name="file" multiple="multiple" required>
+                <button type="submit">Tải lên</button>
+            </form>
+            {% if questions %}
+                <h2>Các câu hỏi đã phân tích:</h2>
+                <p>Tổng số câu hỏi: {{ total_questions }}</p>
+                <ul>
+                    {% for q in questions %}
+                        <li>
+                            <strong>ID:</strong> {{ q.ID }}<br>
+                            <strong>{{ q.Câu }}</strong><br>
+                            <strong>Đáp án:</strong>
+                            <ul>
+                                {% for key, value in q['Đáp án'].items() %}
+                                    <li>{{ key }}. {{ value }}</li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="footer">
+            &copy; 2025 the liems
+        </div>
+    </div>
 </body>
 </html>
