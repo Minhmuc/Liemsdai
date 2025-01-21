@@ -129,6 +129,11 @@
             border-radius: 50%;
             display: none;
         }
+
+        .error {
+            color: #f00;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +172,14 @@
                     Copy nội dung
                 </button>
                 <span class="checkmark" style="display: none;">&#10004;</span>
+            {% endif %}
+            {% if errors %}
+                <h2>Lỗi:</h2>
+                <ul>
+                    {% for error in errors %}
+                        <li class="error">{{ error }}</li>
+                    {% endfor %}
+                </ul>
             {% endif %}
         </div>
         <div class="footer">
