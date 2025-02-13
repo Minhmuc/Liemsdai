@@ -105,7 +105,16 @@ def index():
             questions_code, errors_code = parse_questions(json_codes=[json_code], id_filter=id_filter)  # Thêm câu hỏi từ JSON code
             questions.update({q['ID']: q for q in questions_code})
             errors.extend(errors_code)
-    response = render_template('index.html', questions=list(questions.values()), total_questions=len(questions), errors=errors)
+    
+    # Sắp xếp các câu hỏi theo ID
+    sorted_questions = sorted(questions.values(), key=lambda x: x['ID'])
+    
+    # Đánh số lại các câu hỏi theo thứ tự
+    for idx, question in enumerate(sorted_questions, start=1):
+        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
+    
+    response = render_template('index.html', questions=sorted_questions, total_questions=len(sorted_questions), errors=errors)
+    
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
