@@ -36,6 +36,10 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                             question_cleaned = clean_html(question_text)
                             answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
 
+                            # Kiểm tra xem câu hỏi có chứa hình ảnh hay không
+                            if '<img' in question_text:
+                                question_cleaned += " [hình ảnh]"
+
                             formatted_question = {
                                 "ID": question_id,
                                 "Câu": f"Câu {idx}: {question_cleaned}",
@@ -65,6 +69,10 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
 
                     question_cleaned = clean_html(question_text)
                     answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
+
+                    # Kiểm tra xem câu hỏi có chứa hình ảnh hay không
+                    if '<img' in question_text:
+                        question_cleaned += " [hình ảnh]"
 
                     formatted_question = {
                         "ID": question_id,
