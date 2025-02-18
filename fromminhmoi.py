@@ -143,6 +143,10 @@ def save_json_code():
         return jsonify(success=True, filename=filepath)
     return jsonify(success=False)
 
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return app.send_static_file(filename)
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường
     app.run(host='0.0.0.0', port=port)
