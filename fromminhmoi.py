@@ -147,6 +147,10 @@ def save_json_code():
 def static_files(filename):
     return app.send_static_file(filename)
 
+@app.route('/ping')
+def ping():
+    return "pong", 200
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường
     app.run(host='0.0.0.0', port=port)
