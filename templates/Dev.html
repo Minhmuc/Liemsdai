@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Expert Mode - LMS Licker</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <style>
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('/static/Minecraft.ttf') format('truetype');
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: auto;
+            background-color: #2C2F33; /* Nền tối giống Discord */
+            color: #e0e0e0; /* Màu chữ sáng */
+        }
+
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('/static/hinhnen.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            filter: brightness(0.3) blur(5px); /* Giảm độ sáng và tăng độ mờ */
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #23272A; /* Nền trong suốt tối giống Discord */
+            border: 1px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .header, .footer, .content h2, .button, .copy-button, .error {
+            font-family: 'Minecraft', Arial, sans-serif; /* Áp dụng font Minecraft cho các phần tử cụ thể */
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            color: #ffffff; /* Màu chữ sáng */
+        }
+
+        .content {
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .content li {
+            margin-bottom: 10px;
+        }
+
+        .content li strong {
+            font-weight: bold;
+        }
+
+        .content h2 {
+            margin-top: 0;
+            color: #ffffff; /* Màu chữ sáng */
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #e0e0e0; /* Màu chữ sáng */
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+            }
+        }
+
+        .file-input {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .file-input input[type="file"] {
+            display: none;
+        }
+
+        .file-input span {
+            margin-left: 10px;
+            color: #e0e0e0; /* Màu chữ sáng */
+        }
+
+        .file-input label {
+            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+            background-color: #333; /* Nền tối */
+            color: #e0e0e0; /* Màu chữ sáng */
+        }
+
+        .button {
+            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            display: none; /* Ẩn nút mặc định */
+        }
+
+        .button:hover {
+            background-color: #5b6eae;
+        }
+
+        .copy-button {
+            background-color: #28a745;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .copy-button:hover {
+            background-color: #218838;
+        }
+
+        .copy-button .checkmark {
+            position: absolute;
+            top: 50%;
+            right: -20px;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: #fff;
+            background-color: #03A9F4;
+            padding: 5px;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .checkmark {
+            color: #28a745;
+            font-size: 1.5em;
+            margin-left: 10px;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="background-image"></div>
+    
+    <div class="container">
+        <div class="header">
+            <a href="/" style="color:#03A9F4; font-size: 1em; text-decoration: none; margin-right: 15px;">&#8962; Home</a>
+            <h1>Like Learning So Much</h1>
+        </div>
+        <div class="content">
+            <h2>Nhập tệp JSON/txt hoặc JSON code</h2>
+            <form id="json-form" method="post" enctype="multipart/form-data">
+                <div class="file-input">
+                    <label for="file-input">Chọn tệp</label>
+                    <input type="file" id="file-input" name="file" multiple="multiple" onchange="toggleSubmitButton()">
+                    <span id="file-name">Không có tệp nào được chọn</span>
+                </div>
+                <textarea id="json-code" name="json_code" rows="10" cols="50" placeholder="Nhập JSON code tại đây..." oninput="toggleOkButton()"></textarea>
+                <div>
+                    <button class="button" id="ok-button" type="button" onclick="submitJsonCode()">OK</button>
+                    <button class="button" id="submit-button" type="submit">Liếm luôn</button>
+                </div>
+            </form>
+            {% if questions %}
+                <h2>Các câu hỏi đã phân tích:</h2>
+                <p>Tổng số câu hỏi: {{ total_questions }}</p>
+                <div id="question-list">
+                    {% for q in questions %}
+                        <div>
+                            <strong>ID:</strong> {{ q.ID }}<br>
+                            <strong>{{ q.Câu }}</strong><br>
+                            <strong>Đáp án:</strong>
+                            <ul>
+                                {% for key, value in q['Đáp án'].items() %}
+                                    <li>{{ key }}. {{ value }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </div>
+                <button class="copy-button" onclick="copyToClipboard()">
+                    Copy nội dung
+                </button>
+                <span class="checkmark" style="display: none;">&#10004;</span>
+            {% endif %}
+            {% if errors %}
+                <h2>Lỗi:</h2>
+                <ul>
+                    {% for error in errors %}
+                        <li class="error">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="footer">
+            &copy; 2025 the liems
+        </div>
+    </div>
+    <script>
+        const fileInput = document.querySelector('.file-input input[type="file"]');
+        const fileNameSpan = document.querySelector('.file-input #file-name');
+        const submitButton = document.getElementById('submit-button');
+        const okButton = document.getElementById('ok-button');
+        const jsonCodeTextarea = document.getElementById('json-code');
+
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 1) {
+                fileNameSpan.textContent = `${files.length} tệp`;
+            } else {
+                fileNameSpan.textContent = files[0].name;
+            }
+            toggleSubmitButton();
+        });
+
+        function toggleSubmitButton() {
+            if (fileInput.files.length > 0) {
+                submitButton.style.display = 'inline-block';
+            } else {
+                submitButton.style.display = 'none';
+            }
+        }
+
+        function toggleOkButton() {
+            if (jsonCodeTextarea.value.trim().length > 0) {
+                okButton.style.display = 'inline-block';
+            } else {
+                okButton.style.display = 'none';
+            }
+        }
+
+        function submitJsonCode() {
+            const jsonCode = jsonCodeTextarea.value;
+
+            fetch('/save_json_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ json_code: jsonCode }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const file = new File([jsonCode], data.filename, { type: 'text/plain' });
+                    const dataTransfer = new DataTransfer();
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        dataTransfer.items.add(fileInput.files[i]);
+                    }
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    fileNameSpan.textContent = `${fileInput.files.length} tệp`;
+                    jsonCodeTextarea.value = ''; // Clear the textarea
+                    toggleSubmitButton();
+                    toggleOkButton();
+                } else {
+                    alert('Có lỗi xảy ra khi lưu JSON code!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi lưu JSON code!');
+            });
+        }
+
+        function copyToClipboard() {
+            const questionList = document.getElementById('question-list');
+            const range = document.createRange();
+            range.selectNode(questionList);
+            window.getSelection().removeAllRanges();  // Clear current selection
+            window.getSelection().addRange(range);    // Select the content
+            try {
+                const successful = document.execCommand('copy');  // Copy the selected content
+                const checkmark = document.querySelector('.checkmark');
+                checkmark.style.display = 'inline-block';
+                setTimeout(() => {
+                    checkmark.style.display = 'none';
+                }, 2000);
+            } catch (err) {
+                alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
+            }
+            window.getSelection().removeAllRanges();  // Deselect the content
+        }
+    </script>
+</body>
+</html>

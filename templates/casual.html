@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Casual Mode - LMS Licker</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+        <style>
+            @font-face {
+                font-family: 'Minecraft';
+                src: url('/static/Minecraft.ttf') format('truetype');
+            }
+
+            body {
+                background: #f0f0f0;
+                color: #222222;
+                font-family: 'Minecraft', Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+
+            .container {
+                background-color: #ffffff;
+                max-width: 600px;
+                width: 90%;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 0 15px rgba(0,0,0,0.15);
+                text-align: center;
+            }
+
+            .header {
+                margin-bottom: 25px;
+            }
+
+            .header h1 {
+                margin: 0;
+                font-size: 2.2em;
+                color: #222222;
+                font-weight: 700;
+            }
+
+            .content h2 {
+                margin-top: 0;
+                color: #222222;
+                font-weight: 500;
+                margin-bottom: 15px;
+            }
+
+            .selection-bar {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                max-width: 600px;
+                margin: 0 auto 15px auto;
+                text-align: left;
+            }
+
+            #selection-input {
+                width: 250px;
+                padding: 12px 40px 12px 15px;
+                font-size: 1.1em;
+                border-radius: 8px;
+                border: 1px solid #7289DA;
+                cursor: pointer;
+                box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+                transition: border-color 0.3s ease, box-shadow 0.3s ease;
+                position: relative;
+                background-color: #ffffff;
+                color: #222222;
+                font-weight: 500;
+                user-select: none;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            #selection-input:hover {
+                border-color: #5b6eae;
+                box-shadow: 0 0 8px rgba(114, 137, 218, 0.7);
+            }
+
+            #selection-input::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                right: 15px;
+                width: 0;
+                height: 0;
+                pointer-events: none;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #7289DA;
+                transform: translateY(-50%);
+                transition: border-top-color 0.3s ease;
+            }
+            #selection-input.open::after {
+                border-top-color: #5b6eae;
+                transform: translateY(-50%) rotate(180deg);
+            }
+
+            .selection-list {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background-color: #ffffff;
+                border: 1px solid #7289DA;
+                border-top: none;
+                max-height: 220px;
+                overflow-y: auto;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                border-radius: 0 0 8px 8px;
+                z-index: 1000;
+            }
+
+            .selection-list div {
+                padding: 8px 15px;
+                cursor: pointer;
+                transition: background-color 0.2s ease, box-shadow 0.2s ease;
+                color: #222222;
+                font-weight: 500;
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .selection-list div:hover {
+                background-color: #7289DA;
+                color: #fff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+
+            #download-btn {
+                background-color: #7289DA;
+                color: #fff;
+                padding: 12px 32px;
+                border-radius: 8px;
+                font-size: 1.2em;
+                border: none;
+                cursor: pointer;
+                transition: background-color 0.3s ease, box-shadow 0.3s ease;
+                display: none;
+                vertical-align: top;
+            }
+            #download-btn:hover {
+                box-shadow: 0 0 12px rgba(114, 137, 218, 0.8);
+            }
+
+            #download-btn:hover {
+                background-color: #5b6eae;
+            }
+
+            #download-btn:disabled {
+                background-color: #999999;
+                cursor: not-allowed;
+            }
+
+            .footer {
+                margin-top: 30px;
+                font-size: 0.9em;
+                color: #555555;
+            }
+
+            a.back-link {
+                color: #03A9F4;
+                text-decoration: none;
+                display: inline-block;
+                margin-top: 30px;
+                font-weight: bold;
+            }
+
+            a.back-link:hover {
+                text-decoration: underline;
+            }
+        </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Hate Learning So Much</h1>
+        </div>
+        <div class="content">
+            <div class="selection-bar" id="selection-bar">
+                <input type="text" id="selection-input" placeholder="Chọn File" readonly>
+                <div class="selection-list" id="selection-list" style="display:none;">
+                    <!-- File options will be populated here -->
+                </div>
+            </div>
+            <button id="download-btn" class="download-btn" style="display:none;">Download</button>
+            <br>
+            <a href="/" class="back-link">&#8592; Back</a>
+        </div>
+        <div class="footer">
+            &copy; 2025 the liems
+        </div>
+    </div>
+        <script>
+        const selectionInput = document.getElementById('selection-input');
+        const selectionList = document.getElementById('selection-list');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let selectedFile = null;
+
+        // Toggle selection list visibility and arrow rotation
+        selectionInput.addEventListener('click', () => {
+            if (selectionList.style.display === 'none') {
+                selectionList.style.display = 'block';
+                selectionInput.classList.add('open');
+            } else {
+                selectionList.style.display = 'none';
+                selectionInput.classList.remove('open');
+            }
+        });
+
+        // Close selection list if clicked outside
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('selection-bar').contains(e.target)) {
+                selectionList.style.display = 'none';
+                selectionInput.classList.remove('open');
+            }
+        });
+
+        // Fetch files and populate selection list
+        async function fetchFiles() {
+            try {
+                const response = await fetch('/api/data-files');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const files = await response.json();
+                if (files.error) {
+                    selectionList.innerHTML = '<div style="padding: 8px;">Error: ' + files.error + '</div>';
+                    return;
+                }
+                if (files.length === 0) {
+                    selectionList.innerHTML = '<div style="padding: 8px;">No files available for download.</div>';
+                    return;
+                }
+                selectionList.innerHTML = '';
+                files.forEach(file => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.textContent = file;
+                    optionDiv.style.cursor = 'pointer';
+optionDiv.addEventListener('click', () => {
+    selectedFile = file;
+    // Show full filename with ellipsis and tooltip
+    selectionInput.value = file;
+    selectionInput.title = file;
+    downloadBtn.style.display = 'inline-block';
+    selectionList.style.display = 'none';
+    selectionInput.classList.remove('open');
+});
+                    selectionList.appendChild(optionDiv);
+                });
+            } catch (error) {
+                selectionList.innerHTML = '<div style="padding: 8px;">Failed to load files: ' + error.message + '</div>';
+            }
+        }
+
+        // Handle download button click
+        downloadBtn.addEventListener('click', () => {
+            if (!selectedFile) return;
+            const url = '/download/data/' + encodeURIComponent(selectedFile);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = selectedFile;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        });
+
+        window.onload = fetchFiles;
+    </script>
+</body>
+</html>

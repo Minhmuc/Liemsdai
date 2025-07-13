@@ -151,6 +151,88 @@ def static_files(filename):
 def ping():
     return "pong", 200
 
+import os
+from flask import send_from_directory, abort
+
+@app.route('/casual')
+def casual():
+    return render_template('casual.html')
+
+@app.route('/api/data-files')
+def data_files():
+    data_folder = 'Data'
+    try:
+        files = os.listdir(data_folder)
+        # Filter to only files (exclude directories)
+        files = [f for f in files if os.path.isfile(os.path.join(data_folder, f))]
+        return jsonify(files)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download/data/<path:filename>')
+def download_data_file(filename):
+    data_folder = 'Data'
+    # Security check: prevent path traversal attacks
+    if '..' in filename or filename.startswith('/'):
+        abort(400, description="Invalid filename")
+    try:
+        return send_from_directory(data_folder, filename, as_attachment=True)
+    except FileNotFoundError:
+        abort(404, description="File not found")
+
+import io
+import zipfile
+from flask import send_file, request
+
+@app.route('/download/data-multiple', methods=['POST'])
+def download_multiple_files():
+    data_folder = 'Data'
+    files = request.json.get('files', [])
+    if not files:
+        return jsonify({'error': 'No files selected'}), 400
+
+    # Security check: prevent path traversal attacks
+    for filename in files:
+        if '..' in filename or filename.startswith('/'):
+            return jsonify({'error': 'Invalid filename detected'}), 400
+
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for filename in files:
+            file_path = os.path.join(data_folder, filename)
+            if os.path.isfile(file_path):
+                zf.write(file_path, arcname=filename)
+            else:
+                return jsonify({'error': f'File not found: {filename}'}), 404
+    memory_file.seek(0)
+    return send_file(memory_file, attachment_filename='selected_files.zip', as_attachment=True)
+
+@app.route('/dev', methods=['GET', 'POST'])
+def dev():
+    questions = {}
+    errors = []
+    if request.method == 'POST':
+        files = request.files.getlist('file')  # Lấy danh sách tệp được chọn
+        json_code = request.form.get('json_code')  # Lấy JSON code từ form
+        id_filter = request.form.get('id')  # Lấy giá trị ID từ form
+        if files:
+            questions_file, errors_file = parse_questions(files=files, id_filter=id_filter)  # Thêm câu hỏi vào danh sách
+            questions.update({q['ID']: q for q in questions_file})
+            errors.extend(errors_file)
+        if json_code:
+            questions_code, errors_code = parse_questions(json_codes=[json_code], id_filter=id_filter)  # Thêm câu hỏi từ JSON code
+            questions.update({q['ID']: q for q in questions_code})
+            errors.extend(errors_code)
+
+    # Sắp xếp các câu hỏi theo ID
+    sorted_questions = sorted(questions.values(), key=lambda x: x['ID'])
+
+    # Đánh số lại các câu hỏi theo thứ tự
+    for idx, question in enumerate(sorted_questions, start=1):
+        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
+
+    return render_template('Dev.html', questions=sorted_questions, errors=errors)
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường
     app.run(host='0.0.0.0', port=port)

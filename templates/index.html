@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>LMS Licker</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chọn độ khó - LMS Licker</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
         @font-face {
@@ -10,13 +11,26 @@
             src: url('/static/Minecraft.ttf') format('truetype');
         }
 
+        :root {
+            --bg-color: #2C2F33;
+            --text-color: #e0e0e0;
+            --container-bg-color: #23272A;
+            --container-border-color: #333;
+            --button-bg-color: #7289DA;
+            --button-text-color: white;
+            --button-hover-bg-color: #5b6eae;
+            --button-box-shadow: 0 2px 8px rgba(114, 137, 218, 0.6);
+            --button-hover-box-shadow: 0 4px 16px rgba(91, 110, 174, 0.8);
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             overflow: auto;
-            background-color: #2C2F33; /* Nền tối giống Discord */
-            color: #e0e0e0; /* Màu chữ sáng */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .background-image {
@@ -30,301 +44,241 @@
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
-            filter: brightness(0.3) blur(5px); /* Giảm độ sáng và tăng độ mờ */
+            filter: brightness(0.3) blur(5px);
             z-index: -1;
             opacity: 0.5;
+            transition: filter 0.3s ease;
         }
 
         .container {
             position: relative;
             z-index: 1;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #23272A; /* Nền trong suốt tối giống Discord */
-            border: 1px solid #333;
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px 30px;
+            background-color: var(--container-bg-color);
+            border: 1px solid var(--container-border-color);
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-
-        .header, .footer, .content h2, .button, .copy-button, .error {
-            font-family: 'Minecraft', Arial, sans-serif; /* Áp dụng font Minecraft cho các phần tử cụ thể */
-        }
-
-        .header {
             text-align: center;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        header {
+            font-family: 'Minecraft', Arial, sans-serif;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            color: var(--text-color);
+            transition: color 0.3s ease;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .mode-button {
+            font-family: 'Minecraft', Arial, sans-serif;
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: none;
+            border-radius: 8px;
+            padding: 14px 0;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: var(--button-box-shadow);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            user-select: none;
+        }
+
+        .mode-button:hover {
+            background-color: var(--button-hover-bg-color);
+            box-shadow: var(--button-hover-box-shadow);
+        }
+
+        .toggle-button {
+            font-family: 'Minecraft', Arial, sans-serif;
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: none;
+            border-radius: 8px;
+            padding: 14px 0;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--button-box-shadow);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            user-select: none;
             margin-bottom: 20px;
         }
 
-        .header h1 {
-            margin: 0;
-            font-size: 2em;
-            color: #ffffff; /* Màu chữ sáng */
+        .toggle-button:hover {
+            background-color: var(--button-hover-bg-color);
+            box-shadow: var(--button-hover-box-shadow);
         }
 
-        .content {
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .content ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .content li {
-            margin-bottom: 10px;
-        }
-
-        .content li strong {
-            font-weight: bold;
-        }
-
-        .content h2 {
-            margin-top: 0;
-            color: #ffffff; /* Màu chữ sáng */
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            color: #e0e0e0; /* Màu chữ sáng */
-        }
-
-        @media (max-width: 768px) {
+        @media (max-width: 480px) {
             .container {
-                margin: 20px auto;
+                margin: 50px 20px;
+                padding: 30px 20px;
+                max-width: 90vw;
+            }
+
+            header h1 {
+                font-size: 2em;
+            }
+
+            .mode-button, .toggle-button {
+                font-size: 1em;
+                padding: 12px 0;
             }
         }
 
-        .file-input {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
+        body.light-mode {
+            --bg-color: #f0f0f0;
+            --text-color: #222222;
+            --container-bg-color: #ffffff;
+            --container-border-color: #ccc;
+            --button-bg-color: #4a90e2;
+            --button-text-color: white;
+            --button-hover-bg-color: #357ABD;
+            --button-box-shadow: 0 2px 8px rgba(74, 144, 226, 0.6);
+            --button-hover-box-shadow: 0 4px 16px rgba(53, 122, 189, 0.8);
         }
-
-        .file-input input[type="file"] {
-            display: none;
+        .switch {
+            position: relative;
+            margin: 20px auto 0 auto;
+            display: block;
+            width: 50px;
+            height: 28px;
+            z-index: 1000;
         }
-
-        .file-input span {
-            margin-left: 10px;
-            color: #e0e0e0; /* Màu chữ sáng */
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
         }
-
-        .file-input label {
-            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            resize: vertical;
-            background-color: #333; /* Nền tối */
-            color: #e0e0e0; /* Màu chữ sáng */
-        }
-
-        .button {
-            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-right: 10px;
-            display: none; /* Ẩn nút mặc định */
-        }
-
-        .button:hover {
-            background-color: #5b6eae;
-        }
-
-        .copy-button {
-            background-color: #28a745;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .copy-button:hover {
-            background-color: #218838;
-        }
-
-        .copy-button .checkmark {
+        .slider {
             position: absolute;
-            top: 50%;
-            right: -20px;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: #fff;
-            background-color: #03A9F4;
-            padding: 5px;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+            display: block;
+            width: 50px;
+            height: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
             border-radius: 50%;
-            display: none;
         }
-
-        .checkmark {
-            color: #28a745;
-            font-size: 1.5em;
-            margin-left: 10px;
+        /* Dark mode styles for toggle slider */
+        body:not(.light-mode) .slider {
+            background-color: #000000;
         }
-
-        .error {
-            color: #dc3545;
-            font-weight: bold;
+        body:not(.light-mode) .slider .moon {
+            fill: #FFFFFF;
+        }
+        input:checked + .slider {
+            background-color: #7289DA;
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
         }
     </style>
 </head>
 <body>
     <div class="background-image"></div>
-    <div class="container">
-        <div class="header">
-            <h1>Like Learning So Much</h1>
+    <div class="container" role="main" aria-label="Chọn chế độ">
+        <header>
+            <h1>Chọn độ khó</h1>
+        </header>
+        <div class="button-container">
+            <a href="/dev" class="mode-button" aria-label="Chế độ Dev">Expert</a>
+            <a href="/casual" class="mode-button" aria-label="Chế độ Casual">Casual</a>
         </div>
-        <div class="content">
-            <h2>Nhập tệp JSON/txt hoặc JSON code</h2>
-            <form id="json-form" method="post" enctype="multipart/form-data">
-                <div class="file-input">
-                    <label for="file-input">Chọn tệp</label>
-                    <input type="file" id="file-input" name="file" multiple="multiple" onchange="toggleSubmitButton()">
-                    <span id="file-name">Không có tệp nào được chọn</span>
-                </div>
-                <textarea id="json-code" name="json_code" rows="10" cols="50" placeholder="Nhập JSON code tại đây..." oninput="toggleOkButton()"></textarea>
-                <div>
-                    <button class="button" id="ok-button" type="button" onclick="submitJsonCode()">OK</button>
-                    <button class="button" id="submit-button" type="submit">Liếm luôn</button>
-                </div>
-            </form>
-            {% if questions %}
-                <h2>Các câu hỏi đã phân tích:</h2>
-                <p>Tổng số câu hỏi: {{ total_questions }}</p>
-                <div id="question-list">
-                    {% for q in questions %}
-                        <div>
-                            <strong>ID:</strong> {{ q.ID }}<br>
-                            <strong>{{ q.Câu }}</strong><br>
-                            <strong>Đáp án:</strong>
-                            <ul>
-                                {% for key, value in q['Đáp án'].items() %}
-                                    <li>{{ key }}. {{ value }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endfor %}
-                </div>
-                <button class="copy-button" onclick="copyToClipboard()">
-                    Copy nội dung
-                </button>
-                <span class="checkmark" style="display: none;">&#10004;</span>
-            {% endif %}
-            {% if errors %}
-                <h2>Lỗi:</h2>
-                <ul>
-                    {% for error in errors %}
-                        <li class="error">{{ error }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        </div>
-        <div class="footer">
-            &copy; 2025 the liems
-        </div>
+        <label class="switch" id="mode-toggle" aria-label="Switch Light/Dark Mode" title="Switch Light/Dark Mode" role="checkbox" tabindex="0" aria-checked="false">
+            <input type="checkbox" id="mode-checkbox" />
+            <span class="slider round">
+                <svg class="icon sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="yellow" width="16" height="16" style="position: absolute; left: 6px; top: 6px;">
+                    <circle cx="12" cy="12" r="5"/>
+                    <g stroke="yellow" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="4"/>
+                        <line x1="12" y1="20" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/>
+                        <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="4" y2="12"/>
+                        <line x1="20" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/>
+                        <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
+                    </g>
+                </svg>
+                <svg class="icon moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16" style="position: absolute; right: 6px; top: 6px;">
+                    <path d="M21 12.79A9 9 0 0111.21 3 7 7 0 0012 17a7 7 0 009-4.21z"/>
+                </svg>
+            </span>
+        </label>
     </div>
     <script>
-        const fileInput = document.querySelector('.file-input input[type="file"]');
-        const fileNameSpan = document.querySelector('.file-input #file-name');
-        const submitButton = document.getElementById('submit-button');
-        const okButton = document.getElementById('ok-button');
-        const jsonCodeTextarea = document.getElementById('json-code');
+        const modeCheckbox = document.getElementById('mode-checkbox');
+        const body = document.body;
+        const modeToggle = document.getElementById('mode-toggle');
 
-        fileInput.addEventListener('change', (e) => {
-            const files = e.target.files;
-            if (files.length > 1) {
-                fileNameSpan.textContent = `${files.length} tệp`;
+        // Load saved mode from localStorage
+        const savedMode = localStorage.getItem('mode');
+        if (savedMode === 'light') {
+            body.classList.add('light-mode');
+            modeCheckbox.checked = true;
+            modeToggle.setAttribute('aria-checked', 'true');
+        } else {
+            modeCheckbox.checked = false;
+            modeToggle.setAttribute('aria-checked', 'false');
+        }
+
+        modeCheckbox.addEventListener('change', () => {
+            body.classList.toggle('light-mode');
+            if (body.classList.contains('light-mode')) {
+                localStorage.setItem('mode', 'light');
+                modeToggle.setAttribute('aria-checked', 'true');
             } else {
-                fileNameSpan.textContent = files[0].name;
+                localStorage.setItem('mode', 'dark');
+                modeToggle.setAttribute('aria-checked', 'false');
             }
-            toggleSubmitButton();
         });
 
-        function toggleSubmitButton() {
-            if (fileInput.files.length > 0) {
-                submitButton.style.display = 'inline-block';
-            } else {
-                submitButton.style.display = 'none';
+        // Accessibility: toggle on label keypress (space or enter)
+        modeToggle.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                modeCheckbox.checked = !modeCheckbox.checked;
+                modeCheckbox.dispatchEvent(new Event('change'));
             }
-        }
-
-        function toggleOkButton() {
-            if (jsonCodeTextarea.value.trim().length > 0) {
-                okButton.style.display = 'inline-block';
-            } else {
-                okButton.style.display = 'none';
-            }
-        }
-
-        function submitJsonCode() {
-            const jsonCode = jsonCodeTextarea.value;
-
-            fetch('/save_json_code', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ json_code: jsonCode }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const file = new File([jsonCode], data.filename, { type: 'text/plain' });
-                    const dataTransfer = new DataTransfer();
-                    for (let i = 0; i < fileInput.files.length; i++) {
-                        dataTransfer.items.add(fileInput.files[i]);
-                    }
-                    dataTransfer.items.add(file);
-                    fileInput.files = dataTransfer.files;
-                    fileNameSpan.textContent = `${fileInput.files.length} tệp`;
-                    jsonCodeTextarea.value = ''; // Clear the textarea
-                    toggleSubmitButton();
-                    toggleOkButton();
-                } else {
-                    alert('Có lỗi xảy ra khi lưu JSON code!');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra khi lưu JSON code!');
-            });
-        }
-
-        function copyToClipboard() {
-            const questionList = document.getElementById('question-list');
-            const range = document.createRange();
-            range.selectNode(questionList);
-            window.getSelection().removeAllRanges();  // Clear current selection
-            window.getSelection().addRange(range);    // Select the content
-            try {
-                const successful = document.execCommand('copy');  // Copy the selected content
-                const checkmark = document.querySelector('.checkmark');
-                checkmark.style.display = 'inline-block';
-                setTimeout(() => {
-                    checkmark.style.display = 'none';
-                }, 2000);
-            } catch (err) {
-                alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
-            }
-            window.getSelection().removeAllRanges();  // Deselect the content
-        }
+        });
     </script>
 </body>
 </html>
