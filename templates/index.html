@@ -254,18 +254,20 @@
         const body = document.body;
         const modeToggle = document.getElementById('mode-toggle');
 
+        const backgroundImageDiv = document.querySelector('.background-image');
+
         // Load saved mode from localStorage
         const savedMode = localStorage.getItem('mode');
         if (savedMode === 'light') {
             body.classList.add('light-mode');
             modeCheckbox.checked = true;
             modeToggle.setAttribute('aria-checked', 'true');
+            backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen1.jpg')";
         } else {
             modeCheckbox.checked = false;
             modeToggle.setAttribute('aria-checked', 'false');
+            backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen.jpg')";
         }
-
-        const backgroundImageDiv = document.querySelector('.background-image');
 
         modeCheckbox.addEventListener('change', () => {
             body.classList.toggle('light-mode');

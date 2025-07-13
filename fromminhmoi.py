@@ -122,14 +122,12 @@ def index():
         question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
     
     response = render_template('index.html', questions=sorted_questions, total_questions=len(sorted_questions), errors=errors)
-    
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         if os.path.isfile(file_path):
             os.remove(file_path)
     return response
-
 @app.route('/save_json_code', methods=['POST'])
 def save_json_code():
     data = request.get_json()
@@ -230,7 +228,12 @@ def dev():
     # Đánh số lại các câu hỏi theo thứ tự
     for idx, question in enumerate(sorted_questions, start=1):
         question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
-
+    
+    # Xóa tất cả các tệp trong thư mục uploaded
+    for filename in os.listdir(UPLOAD_FOLDER):
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
     return render_template('Dev.html', questions=sorted_questions, errors=errors)
 
 if __name__ == "__main__":
