@@ -98,30 +98,7 @@ def clean_html(raw_html):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    questions = {}
-    idx = 1
-    errors = []
-    if request.method == 'POST':
-        files = request.files.getlist('file')  # Lấy danh sách tệp được chọn
-        json_code = request.form.get('json_code')  # Lấy JSON code từ form
-        id_filter = request.form.get('id')  # Lấy giá trị ID từ form
-        if files:
-            questions_file, errors_file = parse_questions(files=files, id_filter=id_filter)  # Thêm câu hỏi vào danh sách
-            questions.update({q['ID']: q for q in questions_file})
-            errors.extend(errors_file)
-        if json_code:
-            questions_code, errors_code = parse_questions(json_codes=[json_code], id_filter=id_filter)  # Thêm câu hỏi từ JSON code
-            questions.update({q['ID']: q for q in questions_code})
-            errors.extend(errors_code)
-    
-    # Sắp xếp các câu hỏi theo ID
-    sorted_questions = sorted(questions.values(), key=lambda x: x['ID'])
-    
-    # Đánh số lại các câu hỏi theo thứ tự
-    for idx, question in enumerate(sorted_questions, start=1):
-        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
-    
-    response = render_template('index.html', questions=sorted_questions, total_questions=len(sorted_questions), errors=errors)
+    response = render_template('index.html')
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
