@@ -211,7 +211,8 @@ def dev():
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         if os.path.isfile(file_path):
             os.remove(file_path)
-    return render_template('Dev.html', questions=sorted_questions, errors=errors)
+    total_questions = len(sorted_questions)
+    return render_template('Dev.html', questions=sorted_questions, errors=errors, total_questions=total_questions)
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường
