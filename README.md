@@ -30,13 +30,13 @@ Made for students, teachers, and anyone who looks at LMS JSON data and thinks:
 
 ## 🧪 How to Use (Without Breaking Things)
 
-### Expert Mode
+### Expert Mode🧠
 1. Click **Expert Mode**.
 2. Throw in your JSON/TXT file (or paste it like a barbarian).
 3. Press **Liếm luôn** (translation: “Lick it NOW”).
 4. Profit 💰.
 
-### Casual Mode
+### Casual Mode🐔
 1. Click **Casual Mode**.
 2. Do you need step 3?
 
