@@ -15,8 +15,8 @@
             margin: 0;
             padding: 0;
             overflow: auto;
-            background-color: #2C2F33; /* Nền tối giống Discord */
-            color: #e0e0e0; /* Màu chữ sáng */
+            background-color: #2C2F33;
+            color: #e0e0e0;
         }
 
         .background-image {
@@ -30,171 +30,73 @@
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
-            filter: brightness(0.3) blur(5px); /* Giảm độ sáng và tăng độ mờ */
+            filter: brightness(0.3) blur(5px);
             z-index: -1;
             opacity: 0.5;
         }
 
-        .container {
+        .container { position: relative; z-index: 1; max-width: 800px; margin: 50px auto; padding: 20px; background-color: #23272A; border: 1px solid #333; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+
+        .header, .footer, .content h2, .button, .copy-button, .error { font-family: 'Minecraft', Arial, sans-serif; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 2em; color: #ffffff; }
+        .content { padding: 20px; margin-bottom: 20px; }
+        .content ul { list-style: none; padding: 0; margin: 0; }
+        .content li { margin-bottom: 10px; }
+        .content li strong { font-weight: bold; }
+        .content h2 { margin-top: 0; color: #ffffff; }
+        .footer { text-align: center; margin-top: 20px; color: #e0e0e0; }
+        @media (max-width: 768px) { .container { margin: 20px auto; } }
+
+        .file-input { display: flex; align-items: center; margin-bottom: 10px; }
+        .file-input input[type="file"] { display: none; }
+        .file-input span { margin-left: 10px; color: #e0e0e0; }
+        .file-input label { background-color: #7289DA; color: #fff; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+
+        textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical; background-color: #333; color: #e0e0e0; }
+
+        .button { background-color: #7289DA; color: #fff; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; display: none; }
+        .button:hover { background-color: #5b6eae; }
+
+        .copy-button { background-color: #3ba55d; color: #fff; padding: 10px 20px; transition: background-color 0.3s ease, box-shadow 0.3s ease; border: none; border-radius: 5px; cursor: pointer; }
+        .copy-button:hover { background-color: #2d7d46; }
+
+        .download-word-btn {
+            background-color: #ffffff;
+            color: #000000;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Minecraft', Arial, sans-serif;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
             position: relative;
-            z-index: 1;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #23272A; /* Nền trong suốt tối giống Discord */
-            border: 1px solid #333;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
+            z-index: 10;
+}
 
-        .header, .footer, .content h2, .button, .copy-button, .error {
-            font-family: 'Minecraft', Arial, sans-serif; /* Áp dụng font Minecraft cho các phần tử cụ thể */
-        }
+        .download-word-btn:hover {
+            background-color: #adadad; /* nền tối hơn */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
 
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 2em;
-            color: #ffffff; /* Màu chữ sáng */
-        }
-
-        .content {
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .content ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .content li {
-            margin-bottom: 10px;
-        }
-
-        .content li strong {
-            font-weight: bold;
-        }
-
-        .content h2 {
-            margin-top: 0;
-            color: #ffffff; /* Màu chữ sáng */
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            color: #e0e0e0; /* Màu chữ sáng */
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                margin: 20px auto;
-            }
-        }
-
-        .file-input {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .file-input input[type="file"] {
-            display: none;
-        }
-
-        .file-input span {
-            margin-left: 10px;
-            color: #e0e0e0; /* Màu chữ sáng */
-        }
-
-        .file-input label {
-            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            resize: vertical;
-            background-color: #333; /* Nền tối */
-            color: #e0e0e0; /* Màu chữ sáng */
-        }
-
-        .button {
-            background-color: #7289DA; /* Màu xanh chủ đạo của Discord */
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-right: 10px;
-            display: none; /* Ẩn nút mặc định */
-        }
-
-        .button:hover {
-            background-color: #5b6eae;
-        }
-
-        .copy-button {
-            background-color: #28a745;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .copy-button:hover {
-            background-color: #218838;
-        }
-
-        .copy-button .checkmark {
-            position: absolute;
-            top: 50%;
-            right: -20px;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: #fff;
-            background-color: #03A9F4;
-            padding: 5px;
-            border-radius: 50%;
-            display: none;
-        }
-
-        .checkmark {
-            color: #28a745;
-            font-size: 1.5em;
-            margin-left: 10px;
-        }
-
-        .error {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
-        
     </style>
+
+    <!-- CDN cho docx và FileSaver -->
+    <!-- dùng jsDelivr UMD (ổn định cho trình duyệt) -->
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
+<!-- FileSaver fallback (nếu bạn thích dùng saveAs). Không bắt buộc. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
 </head>
 <body>
     <div class="background-image"></div>
-    
     <div class="container">
         <div class="header">
             <a href="/" style="color:#03A9F4; font-size: 1em; text-decoration: none; margin-right: 15px;">&#8962; Home</a>
             <h1>Like Learning So Much</h1>
         </div>
+
         <div class="content">
             <h2>Nhập tệp JSON/txt hoặc JSON code</h2>
             <form id="json-form" method="post" enctype="multipart/form-data">
@@ -209,6 +111,7 @@
                     <button class="button" id="submit-button" type="submit">Liếm luôn</button>
                 </div>
             </form>
+
             {% if questions %}
                 <h2>Các câu hỏi đã phân tích:</h2>
                 <p>Tổng số câu hỏi: {{ total_questions }}</p>
@@ -226,11 +129,16 @@
                         </div>
                     {% endfor %}
                 </div>
-                <button class="copy-button" onclick="copyToClipboard()">
-                    Copy nội dung
-                </button>
-                <span class="checkmark" style="display: none;">&#10004;</span>
+
+                <div style="margin-top:12px;">
+                    <button class="copy-button" onclick="copyToClipboard()">Copy nội dung</button>
+
+                    <!-- Nút Download DOCX -->
+                    <button class="download-word-btn" onclick="downloadDocx()">Download Word (.docx)</button>
+
+                </div>
             {% endif %}
+
             {% if errors %}
                 <h2>Lỗi:</h2>
                 <ul>
@@ -240,10 +148,12 @@
                 </ul>
             {% endif %}
         </div>
+
         <div class="footer">
             &copy; 2025 the liems
         </div>
     </div>
+
     <script>
         const fileInput = document.querySelector('.file-input input[type="file"]');
         const fileNameSpan = document.querySelector('.file-input #file-name');
@@ -255,8 +165,10 @@
             const files = e.target.files;
             if (files.length > 1) {
                 fileNameSpan.textContent = `${files.length} tệp`;
-            } else {
+            } else if (files.length === 1) {
                 fileNameSpan.textContent = files[0].name;
+            } else {
+                fileNameSpan.textContent = "Không có tệp nào được chọn";
             }
             toggleSubmitButton();
         });
@@ -279,12 +191,9 @@
 
         function submitJsonCode() {
             const jsonCode = jsonCodeTextarea.value;
-
             fetch('/save_json_code', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ json_code: jsonCode }),
             })
             .then(response => response.json())
@@ -292,9 +201,7 @@
                 if (data.success) {
                     const file = new File([jsonCode], data.filename, { type: 'text/plain' });
                     const dataTransfer = new DataTransfer();
-                    for (let i = 0; i < fileInput.files.length; i++) {
-                        dataTransfer.items.add(fileInput.files[i]);
-                    }
+                    for (let i = 0; i < fileInput.files.length; i++) dataTransfer.items.add(fileInput.files[i]);
                     dataTransfer.items.add(file);
                     fileInput.files = dataTransfer.files;
                     fileNameSpan.textContent = `${fileInput.files.length} tệp`;
@@ -313,22 +220,106 @@
 
         function copyToClipboard() {
             const questionList = document.getElementById('question-list');
+            if (!questionList) { alert('Không có nội dung để copy!'); return; }
             const range = document.createRange();
             range.selectNode(questionList);
-            window.getSelection().removeAllRanges();  // Clear current selection
-            window.getSelection().addRange(range);    // Select the content
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
             try {
-                const successful = document.execCommand('copy');  // Copy the selected content
+                document.execCommand('copy');
                 const checkmark = document.querySelector('.checkmark');
                 checkmark.style.display = 'inline-block';
-                setTimeout(() => {
-                    checkmark.style.display = 'none';
-                }, 2000);
+                setTimeout(()=>checkmark.style.display='none', 2000);
             } catch (err) {
                 alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
             }
-            window.getSelection().removeAllRanges();  // Deselect the content
+            window.getSelection().removeAllRanges();
         }
+
+        // Nếu muốn: tải động docx nếu chưa có (thử vài CDN)
+async function ensureDocxLoaded() {
+  if (window.docx && (window.docx.Document || window.docx.default?.Document)) return;
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
+    'https://unpkg.com/docx@8.5.0/build/index.iife.js'
+  ];
+  for (const src of urls) {
+    await new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => resolve(); // try next url on error
+      document.head.appendChild(s);
+    });
+    if (window.docx) break;
+  }
+}
+
+// Hàm xuất .docx — an toàn với cả global docx hoặc default export
+async function downloadDocx() {
+  try {
+    // ensure library exists (tries dynamic load if needed)
+    if (!(window.docx || window.docx?.default)) {
+      await ensureDocxLoaded();
+    }
+    // pick correct export (some builds put api under .default)
+    const docxPkg = window.docx && window.docx.Document ? window.docx : (window.docx && window.docx.default ? window.docx.default : null);
+    if (!docxPkg) throw new Error('docx không khả dụng sau khi thử tải. Kiểm tra console network.');
+
+    const { Document, Packer, Paragraph, TextRun } = docxPkg;
+
+    const qRoot = document.getElementById('question-list');
+    if (!qRoot) { alert('Không có nội dung để xuất!'); return; }
+
+    // Lấy text từng dòng, loại bỏ dòng rỗng
+    const lines = qRoot.innerText.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+
+    // Tạo paragraph: in đậm nếu là "ID:" hoặc bắt đầu bằng "Câu"
+    const paras = lines.map(line => {
+      const bold = /^ID:|^Câu\s*\d+/i.test(line) || /^Câu\b/i.test(line);
+      return new Paragraph({
+        children: [ new TextRun({ text: line, bold }) ]
+      });
+    });
+
+    // paras.push(new Paragraph(''));
+
+const doc = new Document({
+    styles: {
+        default: {
+            document: {
+                run: {
+                    font: "Aptos (Body)",
+                    size: 24 // 24 half-points = 12pt
+                }
+            }
+        }
+    },
+    sections: [{ properties: {}, children: paras }]
+});
+
+
+    const blob = await Packer.toBlob(doc);
+
+    // dùng FileSaver nếu load, ngược lại dùng link tạm
+    if (window.saveAs) {
+      saveAs(blob, 'noi_dung.docx');
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'noi_dung.docx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.error('Lỗi khi tạo docx:', err);
+    alert('Không thể tạo file .docx. Kiểm tra console để biết lỗi chi tiết.');
+  }
+}
+
     </script>
 </body>
 </html>
