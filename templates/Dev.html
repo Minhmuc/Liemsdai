@@ -131,11 +131,22 @@
                 </div>
 
                 <div style="margin-top:12px;">
-                    <button class="copy-button" onclick="copyToClipboard()">Copy nội dung</button>
+                    <button class="copy-button" onclick="copyToClipboard()" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Copy
+                    </button>
 
-                    <!-- Nút Download DOCX -->
-                    <button class="download-word-btn" onclick="downloadDocx()">Download Word (.docx)</button>
-
+                    <button class="download-word-btn" onclick="downloadDocx()" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Download
+                    </button>
                 </div>
             {% endif %}
 
@@ -227,9 +238,16 @@
             window.getSelection().addRange(range);
             try {
                 document.execCommand('copy');
-                const checkmark = document.querySelector('.checkmark');
-                checkmark.style.display = 'inline-block';
-                setTimeout(()=>checkmark.style.display='none', 2000);
+                
+                // Change button text to "Đã copy" for 1 second
+                const copyButton = document.querySelector('.copy-button');
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = 'Đã copy';
+                
+                setTimeout(() => {
+                    copyButton.innerHTML = originalText;
+                }, 1000);
+                
             } catch (err) {
                 alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
             }
