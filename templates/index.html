@@ -109,6 +109,58 @@
             box-shadow: var(--button-hover-box-shadow);
         }
 
+        .external-link-box {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .external-link {
+            font-family: 'Minecraft', Arial, sans-serif;
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: none;
+            border-radius: 8px;
+            padding: 14px 0;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: var(--button-box-shadow);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .external-link:hover {
+            background-color: var(--button-hover-bg-color);
+            box-shadow: var(--button-hover-box-shadow);
+        }
+
+        .preview-image {
+            width: 100%;
+            height: auto;
+            max-width: 300px;
+            border-radius: 4px;
+        }
+
+        .favicon1-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .text-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .toggle-button {
             font-family: 'Minecraft', Arial, sans-serif;
             background-color: var(--button-bg-color);
@@ -141,9 +193,15 @@
                 font-size: 2em;
             }
 
-            .mode-button, .toggle-button {
+            .mode-button, .toggle-button, .external-link {
                 font-size: 1em;
                 padding: 12px 0;
+            }
+
+            .preview-image {
+                width: 100%;
+                height: auto;
+                max-width: 250px;
             }
         }
 
@@ -225,8 +283,17 @@
             <h1>Chọn độ khó</h1>
         </header>
         <div class="button-container">
-            <a href="/dev" class="mode-button" aria-label="Chế độ Dev">Expert</a>
-            <a href="/casual" class="mode-button" aria-label="Chế độ Casual">Casual</a>
+            <a href="/dev" class="mode-button" aria-label="Chế độ Dev">🧠Expert</a>
+            <a href="/casual" class="mode-button" aria-label="Chế độ Casual">🐔Casual</a>
+        </div>
+        <div class="external-link-box">
+            <a href="https://liemdai.io.vn" class="external-link" aria-label="Truy cập liemdai.io.vn">
+                <div class="text-container">
+                    <img src="/static/favicon1.ico" alt="favicon1" class="favicon1-icon">
+                    <span>Liemdaidary</span>
+                </div>
+                <img src="/static/liemdai.png" alt="Preview of liemdai.io.vn" class="preview-image" id="preview-img">
+            </a>
         </div>
         <label class="switch" id="mode-toggle" aria-label="Switch Light/Dark Mode" title="Switch Light/Dark Mode" role="checkbox" tabindex="0" aria-checked="false">
             <input type="checkbox" id="mode-checkbox" />
@@ -254,6 +321,7 @@
         const modeCheckbox = document.getElementById('mode-checkbox');
         const body = document.body;
         const modeToggle = document.getElementById('mode-toggle');
+        const previewImg = document.getElementById('preview-img');
 
         const backgroundImageDiv = document.querySelector('.background-image');
 
@@ -264,10 +332,12 @@
             modeCheckbox.checked = true;
             modeToggle.setAttribute('aria-checked', 'true');
             backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen1.jpg')";
+            previewImg.src = '/static/liemdai1.png';
         } else {
             modeCheckbox.checked = false;
             modeToggle.setAttribute('aria-checked', 'false');
             backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen.jpg')";
+            previewImg.src = '/static/liemdai.png';
         }
 
         modeCheckbox.addEventListener('change', () => {
@@ -276,10 +346,12 @@
                 localStorage.setItem('mode', 'light');
                 modeToggle.setAttribute('aria-checked', 'true');
                 backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen1.jpg')";
+                previewImg.src = '/static/liemdai1.png';
             } else {
                 localStorage.setItem('mode', 'dark');
                 modeToggle.setAttribute('aria-checked', 'false');
                 backgroundImageDiv.style.backgroundImage = "url('/static/hinhnen.jpg')";
+                previewImg.src = '/static/liemdai.png';
             }
         });
 

@@ -215,5 +215,5 @@ def dev():
     return render_template('Dev.html', questions=sorted_questions, errors=errors, total_questions=total_questions)
 
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))  # Sử dụng PORT từ biến môi trường
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
