@@ -1,8 +1,10 @@
 import os
 import json
 import re
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file
 from datetime import datetime
+import io
+import zipfile
 
 UPLOAD_FOLDER = 'uploaded'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -154,10 +156,6 @@ def download_data_file(filename):
         return send_from_directory(data_folder, filename, as_attachment=True)
     except FileNotFoundError:
         abort(404, description="File not found")
-
-import io
-import zipfile
-from flask import send_file, request
 
 @app.route('/download/data-multiple', methods=['POST'])
 def download_multiple_files():

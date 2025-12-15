@@ -296,16 +296,52 @@ optionDiv.addEventListener('click', () => {
         // Handle download button click
         downloadBtn.addEventListener('click', () => {
             if (!selectedFile) return;
-            const url = '/download/data/' + encodeURIComponent(selectedFile);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = selectedFile;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            
+            // Save selected file to sessionStorage
+            sessionStorage.setItem('pendingDownload', selectedFile);
+            
+            // Build callback URL (return to casual mode after ad)
+            const callbackUrl = window.location.origin + '/casual?autodownload=true';
+            
+            // Create Shrinkme link with callback URL
+            const shrinkmeApiKey = '4aa2dedcdc780d528a0512535ac3fcd7b594743b';
+            const shrinkmeUrl = `https://shrinkme.io/st?api=${shrinkmeApiKey}&url=${encodeURIComponent(callbackUrl)}`;
+            
+            // Redirect to Shrinkme (same tab)
+            window.location.href = shrinkmeUrl;
         });
 
-        window.onload = fetchFiles;
+        // Auto-download after returning from Shrinkme
+        window.onload = () => {
+            fetchFiles();
+            
+            // Check if returning from ad link
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('autodownload') === 'true') {
+                const fileToDownload = sessionStorage.getItem('pendingDownload');
+                if (fileToDownload) {
+                    // Clear the parameter from URL
+                    window.history.replaceState({}, document.title, '/casual');
+                    
+                    // Auto-download the file
+                    setTimeout(() => {
+                        const downloadUrl = '/download/data/' + encodeURIComponent(fileToDownload);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = fileToDownload;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        
+                        // Clear sessionStorage
+                        sessionStorage.removeItem('pendingDownload');
+                        
+                        // Show success message
+                        alert('✅ Đang tải file: ' + fileToDownload);
+                    }, 500);
+                }
+            }
+        };
     </script>
 </body>
 </html>
