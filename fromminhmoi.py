@@ -22,9 +22,9 @@ app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 # Admin password - THAY ĐỔI MẬT KHẨU NÀY
 ADMIN_PASSWORD = 'admin123'
 
-# Google Drive setup (OPTIONAL - set to None to use local storage only)
-USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
-DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)  # Your Google Drive folder ID
+# Google Drive setup
+USE_GOOGLE_DRIVE = True  # Set to False to use local storage only
+DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)  # Your Google Drive folder ID (Optional: leave None for root)
 
 # Initialize Google Drive if enabled
 drive_manager = None
@@ -213,11 +213,20 @@ def download_data_file(filename):
     try:
         if drive_manager:
             # Download from Google Drive to temp location
-            temp_path = os.path.join('/tmp', filename)
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, filename)
+            
             success = drive_manager.download_file_by_name(filename, temp_path)
             
             if success and os.path.exists(temp_path):
-                return send_file(temp_path, as_attachment=True, download_name=filename)
+                response = send_file(temp_path, as_attachment=True, download_name=filename)
+                # Clean up temp file after sending
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
+                return response
             else:
                 abort(404, description="File not found on Drive")
         else:

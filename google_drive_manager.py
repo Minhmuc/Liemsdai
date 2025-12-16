@@ -92,20 +92,30 @@ class GoogleDriveManager:
             if self.folder_id:
                 file_metadata['parents'] = [self.folder_id]
             
-            # Save to temp file first
-            temp_path = f'/tmp/{filename}'
+            # Create temp directory if not exists (works on Windows & Linux)
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, filename)
+            
+            # Save to temp file
             file_object.save(temp_path)
             
+            # Upload the temp file
             result = self.upload_file(temp_path, filename)
             
             # Clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except:
+                pass
             
             return result
         
         except Exception as error:
             print(f"❌ Upload error: {error}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def download_file(self, file_id, destination_path):
