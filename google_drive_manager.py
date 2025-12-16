@@ -51,6 +51,13 @@ class GoogleDriveManager:
             if not filename:
                 filename = os.path.basename(file_path)
             
+            if not os.path.exists(file_path):
+                print(f"❌ File not found: {file_path}")
+                return None
+            
+            file_size = os.path.getsize(file_path)
+            print(f"📄 Uploading {filename} ({file_size} bytes)")
+            
             file_metadata = {
                 'name': filename,
             }
@@ -58,19 +65,30 @@ class GoogleDriveManager:
             # Add to folder if specified
             if self.folder_id:
                 file_metadata['parents'] = [self.folder_id]
+                print(f"📁 Uploading to folder: {self.folder_id}")
             
             media = MediaFileUpload(file_path, resumable=True)
+            
+            print(f"🔄 Executing Drive API create...")
             file = self.service.files().create(
                 body=file_metadata,
                 media_body=media,
                 fields='id, name, size, createdTime'
             ).execute()
             
-            print(f"✅ Uploaded: {filename} (ID: {file.get('id')})")
+            print(f"✅ Uploaded: {filename} (ID: {file.get('id')}, Size: {file.get('size')})")
             return file.get('id')
         
         except HttpError as error:
-            print(f"❌ Upload error: {error}")
+            print(f"❌ HTTP Error during upload: {error}")
+            print(f"   Error details: {error.error_details if hasattr(error, 'error_details') else 'N/A'}")
+            import traceback
+            traceback.print_exc()
+            return None
+        except Exception as error:
+            print(f"❌ Unexpected error during upload: {error}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def upload_file_object(self, file_object, filename):
@@ -84,39 +102,64 @@ class GoogleDriveManager:
         Returns:
             File ID on success, None on failure
         """
+        temp_path = None
         try:
+            print(f"📤 Starting upload: {filename}")
+            
             file_metadata = {
                 'name': filename,
             }
             
             if self.folder_id:
                 file_metadata['parents'] = [self.folder_id]
+                print(f"📁 Target folder ID: {self.folder_id}")
             
             # Create temp directory if not exists (works on Windows & Linux)
             import tempfile
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, filename)
             
+            print(f"💾 Saving to temp: {temp_path}")
+            
+            # Reset file pointer to beginning
+            file_object.seek(0)
+            
             # Save to temp file
             file_object.save(temp_path)
             
+            # Verify file was saved
+            if not os.path.exists(temp_path):
+                print(f"❌ Temp file not created: {temp_path}")
+                return None
+            
+            file_size = os.path.getsize(temp_path)
+            print(f"✅ Temp file saved: {file_size} bytes")
+            
             # Upload the temp file
+            print(f"☁️ Uploading to Google Drive...")
             result = self.upload_file(temp_path, filename)
             
-            # Clean up temp file
-            try:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except:
-                pass
+            if result:
+                print(f"✅ Upload successful! File ID: {result}")
+            else:
+                print(f"❌ Upload failed - no file ID returned")
             
             return result
         
         except Exception as error:
-            print(f"❌ Upload error: {error}")
+            print(f"❌ Upload error for {filename}: {error}")
             import traceback
             traceback.print_exc()
             return None
+        
+        finally:
+            # Clean up temp file
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                    print(f"🗑️ Cleaned up temp file: {temp_path}")
+                except Exception as e:
+                    print(f"⚠️ Could not clean temp file: {e}")
     
     def download_file(self, file_id, destination_path):
         """
