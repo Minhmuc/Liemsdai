@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - File Manager</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <style>
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('/static/Minecraft.ttf') format('truetype');
+        }
+
+        body {
+            font-family: 'Minecraft', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background-color: #e74c3c;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .logout-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .upload-section {
+            border: 2px dashed #4a90e2;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .upload-section:hover {
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .upload-section.dragging {
+            background-color: rgba(74, 144, 226, 0.2);
+            border-color: #357ABD;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Minecraft', Arial, sans-serif;
+        }
+
+        .btn-primary {
+            background-color: #4a90e2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #357ABD;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .file-list {
+            margin-top: 30px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .file-meta {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .selected-files {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .selected-file {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 5px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #4a90e2;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <a href="/" class="back-link">← Trang chủ</a>
+                <h1>📁 File Manager</h1>
+            </div>
+            <a href="/admin/logout" class="logout-btn">Đăng xuất</a>
+        </div>
+        
+        <div id="messageArea"></div>
+
+        <div class="upload-section" id="uploadSection">
+            <h3>📤 Upload Files</h3>
+            <p>Click hoặc kéo thả file vào đây</p>
+            <input type="file" id="fileInput" multiple>
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                Chọn Files
+            </button>
+        </div>
+
+        <div id="selectedFiles"></div>
+
+        <div class="file-list">
+            <h2>📂 Files trong Data Folder</h2>
+            <div id="fileListContent" class="loading">Đang tải danh sách file...</div>
+        </div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFilesDiv = document.getElementById('selectedFiles');
+        const fileListContent = document.getElementById('fileListContent');
+        const messageArea = document.getElementById('messageArea');
+
+        let selectedFiles = [];
+
+        uploadSection.addEventListener('click', (e) => {
+            if (e.target !== fileInput) {
+                fileInput.click();
+            }
+        });
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragging');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragging');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragging');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = files;
+            displaySelectedFiles();
+        }
+
+        function displaySelectedFiles() {
+            if (selectedFiles.length === 0) {
+                selectedFilesDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="selected-files">';
+            html += `<h3>Files đã chọn (${selectedFiles.length})</h3>`;
+            selectedFiles.forEach((file, index) => {
+                const size = formatFileSize(file.size);
+                html += `
+                    <div class="selected-file">
+                        <span>${file.name} (${size})</span>
+                        <button class="btn btn-danger" onclick="removeFile(${index})">Xóa</button>
+                    </div>
+                `;
+            });
+            html += '<button class="btn btn-primary" onclick="uploadFiles()" style="margin-top: 15px; width: 100%;">Upload All</button>';
+            html += '</div>';
+            selectedFilesDiv.innerHTML = html;
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displaySelectedFiles();
+        }
+
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                showMessage('Vui lòng chọn file trước!', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+
+            try {
+                showMessage('Đang upload...', 'success');
+                const response = await fetch('/admin/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success > 0) {
+                    showMessage(`✅ Upload thành công ${result.success} file(s)!`, 'success');
+                    selectedFiles = [];
+                    selectedFilesDiv.innerHTML = '';
+                    fileInput.value = '';
+                    loadFiles();
+                }
+                
+                if (result.errors.length > 0) {
+                    showMessage('⚠️ Có lỗi: ' + result.errors.join(', '), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Lỗi upload: ' + error.message, 'error');
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/admin/files');
+                const files = await response.json();
+
+                if (files.error) {
+                    fileListContent.innerHTML = '<p>Error: ' + files.error + '</p>';
+                    return;
+                }
+
+                if (files.length === 0) {
+                    fileListContent.innerHTML = '<p style="text-align: center; color: #666;">Chưa có file nào</p>';
+                    return;
+                }
+
+                let html = '';
+                files.forEach(file => {
+                    html += `
+                        <div class="file-item">
+                            <div class="file-info">
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-meta">
+                                    Size: ${formatFileSize(file.size)} | Modified: ${file.modified}
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <a href="/download/data/${encodeURIComponent(file.name)}" class="btn btn-primary" download>
+                                    Download
+                                </a>
+                                <button class="btn btn-danger" onclick="deleteFile('${escapeHtml(file.name)}')">
+                                    Xóa
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                fileListContent.innerHTML = html;
+            } catch (error) {
+                fileListContent.innerHTML = '<p>Error loading files: ' + error.message + '</p>';
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm(`Bạn có chắc muốn xóa file "${filename}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/delete/' + encodeURIComponent(filename), {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Đã xóa file: ' + filename, 'success');
+                    loadFiles();
+                } else {
+                    showMessage('❌ Lỗi: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Lỗi xóa file: ' + error.message, 'error');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function showMessage(message, type) {
+            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        window.onload = loadFiles;
+    </script>
+</body>
+</html>

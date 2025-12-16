@@ -1,16 +1,43 @@
 import os
 import json
 import re
-from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file
+from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file, session, redirect, url_for
 from datetime import datetime
 import io
 import zipfile
+from functools import wraps
+from google_drive_manager import GoogleDriveManager
 
 UPLOAD_FOLDER = 'uploaded'
+DATA_FOLDER = 'Data'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
+app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
+
+# Admin password - THAY ĐỔI MẬT KHẨU NÀY
+ADMIN_PASSWORD = 'admin123'
+
+# Google Drive setup (OPTIONAL - set to None to use local storage only)
+USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
+DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)  # Your Google Drive folder ID
+
+# Initialize Google Drive if enabled
+drive_manager = None
+if USE_GOOGLE_DRIVE:
+    try:
+        drive_manager = GoogleDriveManager(
+            credentials_file='credentials.json',
+            folder_id=DRIVE_FOLDER_ID
+        )
+        print("✅ Google Drive enabled")
+    except Exception as e:
+        print(f"⚠️ Google Drive disabled: {e}")
+        drive_manager = None
 
 def parse_questions(files=None, json_codes=None, id_filter=None):
     result = {}
@@ -163,25 +190,44 @@ def redirect_to_ad():
 
 @app.route('/api/data-files')
 def data_files():
-    data_folder = 'Data'
     try:
-        files = os.listdir(data_folder)
-        # Filter to only files (exclude directories)
-        files = [f for f in files if os.path.isfile(os.path.join(data_folder, f))]
+        if drive_manager:
+            # List from Google Drive
+            drive_files = drive_manager.list_files()
+            files = [f['name'] for f in drive_files]
+        else:
+            # List from local storage
+            files = os.listdir(DATA_FOLDER)
+            files = [f for f in files if os.path.isfile(os.path.join(DATA_FOLDER, f))]
+        
         return jsonify(files)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download/data/<path:filename>')
 def download_data_file(filename):
-    data_folder = 'Data'
     # Security check: prevent path traversal attacks
     if '..' in filename or filename.startswith('/'):
         abort(400, description="Invalid filename")
+    
     try:
-        return send_from_directory(data_folder, filename, as_attachment=True)
+        if drive_manager:
+            # Download from Google Drive to temp location
+            temp_path = os.path.join('/tmp', filename)
+            success = drive_manager.download_file_by_name(filename, temp_path)
+            
+            if success and os.path.exists(temp_path):
+                return send_file(temp_path, as_attachment=True, download_name=filename)
+            else:
+                abort(404, description="File not found on Drive")
+        else:
+            # Download from local storage
+            return send_from_directory(DATA_FOLDER, filename, as_attachment=True)
+    
     except FileNotFoundError:
         abort(404, description="File not found")
+    except Exception as e:
+        abort(500, description=str(e))
 
 @app.route('/download/data-multiple', methods=['POST'])
 def download_multiple_files():
@@ -237,6 +283,133 @@ def dev():
             os.remove(file_path)
     total_questions = len(sorted_questions)
     return render_template('Dev.html', questions=sorted_questions, errors=errors, total_questions=total_questions)
+
+# Admin authentication decorator
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Admin login page
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == ADMIN_PASSWORD:
+            session['admin_logged_in'] = True
+            return redirect(url_for('admin'))
+        else:
+            return render_template('admin_login.html', error='Sai mật khẩu!')
+    return render_template('admin_login.html')
+
+# Admin logout
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('admin_login'))
+
+# Admin dashboard
+@app.route('/admin')
+@admin_required
+def admin():
+    return render_template('admin.html')
+
+# Admin upload file
+@app.route('/admin/upload', methods=['POST'])
+@admin_required
+def admin_upload():
+    if 'files' not in request.files:
+        return jsonify({'error': 'No files provided'}), 400
+    
+    files = request.files.getlist('files')
+    uploaded_files = []
+    errors = []
+    
+    for file in files:
+        if file and file.filename:
+            try:
+                if drive_manager:
+                    # Upload to Google Drive
+                    file_id = drive_manager.upload_file_object(file, file.filename)
+                    if file_id:
+                        uploaded_files.append(file.filename)
+                    else:
+                        errors.append(f"{file.filename}: Failed to upload to Drive")
+                else:
+                    # Upload to local storage
+                    filepath = os.path.join(DATA_FOLDER, file.filename)
+                    file.save(filepath)
+                    uploaded_files.append(file.filename)
+            except Exception as e:
+                errors.append(f"{file.filename}: {str(e)}")
+    
+    return jsonify({
+        'success': len(uploaded_files),
+        'uploaded': uploaded_files,
+        'errors': errors
+    })
+
+# Admin list files
+@app.route('/admin/files')
+@admin_required
+def admin_files():
+    try:
+        files = []
+        
+        if drive_manager:
+            # List from Google Drive
+            drive_files = drive_manager.list_files()
+            for file in drive_files:
+                files.append({
+                    'name': file['name'],
+                    'size': int(file.get('size', 0)),
+                    'modified': file.get('modifiedTime', 'Unknown')
+                })
+        else:
+            # List from local storage
+            for filename in os.listdir(DATA_FOLDER):
+                filepath = os.path.join(DATA_FOLDER, filename)
+                if os.path.isfile(filepath):
+                    size = os.path.getsize(filepath)
+                    modified = datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%Y-%m-%d %H:%M:%S')
+                    files.append({
+                        'name': filename,
+                        'size': size,
+                        'modified': modified
+                    })
+        
+        return jsonify(files)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Admin delete file
+@app.route('/admin/delete/<filename>', methods=['DELETE'])
+@admin_required
+def admin_delete(filename):
+    try:
+        if '..' in filename or filename.startswith('/'):
+            return jsonify({'error': 'Invalid filename'}), 400
+        
+        if drive_manager:
+            # Delete from Google Drive
+            success = drive_manager.delete_file_by_name(filename)
+            if success:
+                return jsonify({'success': True, 'message': f'Deleted {filename}'})
+            else:
+                return jsonify({'error': 'File not found or delete failed'}), 404
+        else:
+            # Delete from local storage
+            filepath = os.path.join(DATA_FOLDER, filename)
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+                return jsonify({'success': True, 'message': f'Deleted {filename}'})
+            else:
+                return jsonify({'error': 'File not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
