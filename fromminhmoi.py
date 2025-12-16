@@ -23,21 +23,34 @@ app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 ADMIN_PASSWORD = 'admin123'
 
 # Google Drive setup
-USE_GOOGLE_DRIVE = True  # Set to False to use local storage only
-DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)  # Your Google Drive folder ID (Optional: leave None for root)
+USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
+DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)
+
+print(f"🔧 USE_GOOGLE_DRIVE: {USE_GOOGLE_DRIVE}")
+print(f"🔧 DRIVE_FOLDER_ID: {DRIVE_FOLDER_ID}")
 
 # Initialize Google Drive if enabled
 drive_manager = None
 if USE_GOOGLE_DRIVE:
+    print("🚀 Initializing Google Drive...")
     try:
-        drive_manager = GoogleDriveManager(
-            credentials_file='credentials.json',
-            folder_id=DRIVE_FOLDER_ID
-        )
-        print("✅ Google Drive enabled")
+        if not os.path.exists('credentials.json'):
+            print("❌ credentials.json not found!")
+            drive_manager = None
+        else:
+            print("✅ credentials.json found")
+            drive_manager = GoogleDriveManager(
+                credentials_file='credentials.json',
+                folder_id=DRIVE_FOLDER_ID
+            )
+            print(f"✅ Google Drive enabled with folder ID: {DRIVE_FOLDER_ID or 'ROOT'}")
     except Exception as e:
-        print(f"⚠️ Google Drive disabled: {e}")
+        print(f"❌ Google Drive initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
         drive_manager = None
+else:
+    print("ℹ️ Google Drive disabled - using local storage")
 
 def parse_questions(files=None, json_codes=None, id_filter=None):
     result = {}
@@ -154,6 +167,28 @@ def static_files(filename):
 @app.route('/ping')
 def ping():
     return "pong", 200
+
+@app.route('/test-drive')
+def test_drive():
+    """Endpoint to test Google Drive connection"""
+    result = {
+        'use_google_drive': USE_GOOGLE_DRIVE,
+        'folder_id': DRIVE_FOLDER_ID,
+        'drive_manager_initialized': drive_manager is not None,
+        'credentials_exists': os.path.exists('credentials.json')
+    }
+    
+    if drive_manager:
+        try:
+            files = drive_manager.list_files()
+            result['drive_connected'] = True
+            result['files_count'] = len(files)
+            result['files'] = [f['name'] for f in files[:5]]  # First 5 files
+        except Exception as e:
+            result['drive_connected'] = False
+            result['error'] = str(e)
+    
+    return jsonify(result)
 
 import os
 from flask import send_from_directory, abort
