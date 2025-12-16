@@ -135,6 +135,32 @@ from flask import send_from_directory, abort
 def casual():
     return render_template('casual.html')
 
+@app.route('/redirect-to-ad')
+def redirect_to_ad():
+    filename = request.args.get('file')
+    if not filename:
+        abort(400, description="Filename required")
+    
+    # Build callback URL
+    callback_url = request.url_root + 'casual?autodownload=true&file=' + filename
+    
+    # Create Shrinkme redirect URL
+    shrinkme_api_key = '4aa2dedcdc780d528a0512535ac3fcd7b594743b'
+    shrinkme_url = f'https://shrinkme.io/st?api={shrinkme_api_key}&url={callback_url}'
+    
+    # Render redirect page
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0;url={shrinkme_url}">
+    <title>Redirecting...</title>
+</head>
+<body>
+    <p>Đang chuyển hướng đến trang quảng cáo...</p>
+    <p>Nếu không tự động chuyển, <a href="{shrinkme_url}">nhấn vào đây</a></p>
+</body>
+</html>'''
+
 @app.route('/api/data-files')
 def data_files():
     data_folder = 'Data'
