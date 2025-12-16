@@ -25,13 +25,44 @@ class GoogleDriveManager:
         self._authenticate()
     
     def _authenticate(self):
-        """Authenticate with Google Drive API"""
+        """Authenticate with Google Drive API using OAuth or Service Account"""
         try:
             SCOPES = ['https://www.googleapis.com/auth/drive']
-            credentials = service_account.Credentials.from_service_account_file(
-                self.credentials_file, scopes=SCOPES)
-            self.service = build('drive', 'v3', credentials=credentials)
-            print("✅ Google Drive authenticated successfully")
+            
+            # Try OAuth first (token.json), fallback to Service Account
+            if os.path.exists('token.json'):
+                print("🔑 Using OAuth authentication (token.json)")
+                from google.auth.transport.requests import Request
+                from google.oauth2.credentials import Credentials
+                from google_auth_oauthlib.flow import InstalledAppFlow
+                
+                creds = None
+                if os.path.exists('token.json'):
+                    creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+                
+                # If no valid credentials, let user log in
+                if not creds or not creds.valid:
+                    if creds and creds.expired and creds.refresh_token:
+                        print("🔄 Refreshing expired token...")
+                        creds.refresh(Request())
+                    else:
+                        print("⚠️ Need to authorize. Run setup script first!")
+                        raise Exception("OAuth token not found or invalid")
+                    
+                    # Save credentials
+                    with open('token.json', 'w') as token:
+                        token.write(creds.to_json())
+                
+                self.service = build('drive', 'v3', credentials=creds)
+                print("✅ OAuth authenticated successfully")
+            else:
+                print("🔑 Using Service Account authentication (credentials.json)")
+                credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_file, scopes=SCOPES)
+                self.service = build('drive', 'v3', credentials=credentials)
+                print("⚠️ Warning: Service Accounts have no storage quota!")
+                print("   Use OAuth authentication instead (create token.json)")
+                
         except Exception as e:
             print(f"❌ Authentication error: {e}")
             raise
