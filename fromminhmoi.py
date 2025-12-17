@@ -342,7 +342,8 @@ def admin_required(f):
 def admin_login():
     if request.method == 'POST':
         password = request.form.get('password')
-        if password in ADMIN_PASSWORDS:
+        # Normalize password to lowercase for case-insensitive comparison
+        if password and password.lower() in [p.lower() for p in ADMIN_PASSWORDS]:
             session['admin_logged_in'] = True
             return redirect(url_for('admin'))
         else:

@@ -283,6 +283,11 @@
                 font 7s step-end infinite, movement 8s step-end infinite;
         }
 
+        .external-link:hover .legendary-text::after {
+            animation: paths 5s step-end infinite, opacity 5s step-end infinite,
+                font 7s step-end infinite, movement 8s step-end infinite;
+        }
+
         @keyframes paths {
             0% {
                 clip-path: polygon(
@@ -666,30 +671,28 @@
             }
         });
 
-        // Text switcher for Liemdaidary <-> Liemdai <-> Legendary
+        // Text switcher synced with glitch animation timing
         const legendaryText = document.querySelector('.legendary-text');
-        if (legendaryText) {
+        const externalLink = document.querySelector('.external-link');
+        
+        if (legendaryText && externalLink) {
             const textOptions = ['Liemdaidary', 'Liemdai', 'Legendary'];
-            let currentIndex = 0;
+            let textInterval;
             
-            setInterval(() => {
-                // 70% of the time show original, 30% show random other text
-                const random = Math.random();
-                if (random > 0.7) {
-                    // Pick a random text from the array (excluding current)
-                    const otherOptions = textOptions.filter((_, i) => i !== currentIndex);
-                    const newText = otherOptions[Math.floor(Math.random() * otherOptions.length)];
-                    
-                    legendaryText.textContent = newText;
-                    legendaryText.setAttribute('data-text', newText);
-                    
-                    setTimeout(() => {
-                        legendaryText.textContent = 'Liemdaidary';
-                        legendaryText.setAttribute('data-text', 'Liemdaidary');
-                        currentIndex = 0;
-                    }, 600);
-                }
-            }, 2500);
+            externalLink.addEventListener('mouseenter', () => {
+                // Change text at intervals matching the step-end animation rhythm
+                textInterval = setInterval(() => {
+                    const randomText = textOptions[Math.floor(Math.random() * textOptions.length)];
+                    legendaryText.textContent = randomText;
+                    legendaryText.setAttribute('data-text', randomText);
+                }, 3000); // 3 seconds for smooth rhythmic text changes
+            });
+            
+            externalLink.addEventListener('mouseleave', () => {
+                clearInterval(textInterval);
+                legendaryText.textContent = 'Liemdaidary';
+                legendaryText.setAttribute('data-text', 'Liemdaidary');
+            });
         }
     </script>
 </body>
