@@ -2,12 +2,24 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Login</title>
+    <title>Master Control - Locking </title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
         @font-face {
             font-family: 'Minecraft';
             src: url('/static/Minecraft.ttf') format('truetype');
+        }
+
+        :root {
+            --bg-color: #2C2F33;
+            --text-color: #e0e0e0;
+            --container-bg-color: #23272A;
+            --container-border-color: #333;
+            --button-bg-color: #7289DA;
+            --button-text-color: white;
+            --button-hover-bg-color: #5b6eae;
+            --button-box-shadow: 0 2px 8px rgba(114, 137, 218, 0.6);
+            --button-hover-box-shadow: 0 4px 16px rgba(91, 110, 174, 0.8);
         }
 
         body {
@@ -18,22 +30,64 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('/static/hinhnen2.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            filter: brightness(0.3) blur(5px);
+            z-index: -1;
+            opacity: 0.5;
+            transition: filter 0.3s ease, background-image 0.3s ease, opacity 0.3s ease;
+        }
+
+        body.light-mode {
+            --bg-color: #f0f0f0;
+            --text-color: #222222;
+            --container-bg-color: #ffffff;
+            --container-border-color: #ccc;
+            --button-bg-color: #4a90e2;
+            --button-text-color: white;
+            --button-hover-bg-color: #357ABD;
+            --button-box-shadow: 0 2px 8px rgba(74, 144, 226, 0.6);
+            --button-hover-box-shadow: 0 4px 16px rgba(53, 122, 189, 0.8);
+        }
+
+        body.light-mode .background-image {
+            filter: brightness(0.7) blur(5px);
+            opacity: 0.8;
         }
 
         .login-container {
-            background-color: white;
+            background-color: var(--container-bg-color);
             padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            border: 1px solid var(--container-border-color);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             text-align: center;
             max-width: 400px;
             width: 90%;
+            position: relative;
+            z-index: 1;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         h1 {
             margin-bottom: 30px;
-            color: #333;
+            color: var(--text-color);
+            transition: color 0.3s ease;
         }
 
         .error {
@@ -48,59 +102,327 @@
         input[type="password"] {
             width: 100%;
             padding: 15px;
-            border: 2px solid #ddd;
+            border: 2px solid var(--container-border-color);
             border-radius: 8px;
             font-size: 1.1em;
             margin-bottom: 20px;
             box-sizing: border-box;
             font-family: Arial, sans-serif;
+            background-color: var(--container-bg-color);
+            color: var(--text-color);
+            transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
         }
 
         input[type="password"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--button-bg-color);
         }
 
         button {
             width: 100%;
             padding: 15px;
-            background-color: #667eea;
-            color: white;
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
             border: none;
             border-radius: 8px;
             font-size: 1.2em;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, box-shadow 0.3s;
             font-family: 'Minecraft', Arial, sans-serif;
+            box-shadow: var(--button-box-shadow);
         }
 
         button:hover {
-            background-color: #5568d3;
+            background-color: var(--button-hover-bg-color);
+            box-shadow: var(--button-hover-box-shadow);
         }
 
         .back-link {
             display: inline-block;
             margin-top: 20px;
-            color: #667eea;
+            color: var(--button-bg-color);
             text-decoration: none;
+            transition: color 0.3s ease;
         }
 
         .back-link:hover {
             text-decoration: underline;
         }
+
+        .unlock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 47, 51, 0.98);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .unlock-overlay.show {
+            display: flex;
+        }
+
+        .unlock-icon {
+            font-size: 6em;
+            margin-bottom: 20px;
+            color: #7289DA;
+            text-shadow: 0 0 20px rgba(114, 137, 218, 0.8), 0 0 40px rgba(114, 137, 218, 0.6);
+            animation: bounceIn 0.6s ease-out, iconPulse 1.5s ease-in-out infinite;
+        }
+
+        .unlock-message {
+            font-family: 'Minecraft', Arial, sans-serif;
+            font-size: 4em;
+            color: #e0e0e0;
+            text-shadow: 0 0 10px rgba(114, 137, 218, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.6s ease-out;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+        }
+
+        .unlock-subtitle {
+            font-family: Arial, sans-serif;
+            font-size: 1.5em;
+            color: #7289DA;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes iconPulse {
+            0%, 100% {
+                text-shadow: 0 0 20px rgba(114, 137, 218, 0.8), 0 0 40px rgba(114, 137, 218, 0.6);
+            }
+            50% {
+                text-shadow: 0 0 30px rgba(114, 137, 218, 1), 0 0 60px rgba(114, 137, 218, 0.8);
+            }
+        }
+
+        .switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 28px;
+            z-index: 1000;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+            display: block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        body:not(.light-mode) .slider {
+            background-color: #000000;
+        }
+
+        body:not(.light-mode) .slider .moon {
+            fill: #FFFFFF;
+        }
+
+        input:checked + .slider {
+            background-color: #7289DA;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
+    <div class="background-image"></div>
+    
+    <label class="switch" id="mode-toggle" aria-label="Switch Light/Dark Mode" title="Switch Light/Dark Mode" role="checkbox" tabindex="0" aria-checked="false">
+        <input type="checkbox" id="mode-checkbox" />
+        <span class="slider round">
+            <svg class="icon sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="yellow" width="16" height="16" style="position: absolute; left: 6px; top: 6px;">
+                <circle cx="12" cy="12" r="5"/>
+                <g stroke="yellow" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="4"/>
+                    <line x1="12" y1="20" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/>
+                    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="4" y2="12"/>
+                    <line x1="20" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/>
+                    <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
+                </g>
+            </svg>
+            <svg class="icon moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16" style="position: absolute; right: 6px; top: 6px;">
+                <path d="M21 12.79A9 9 0 0111.21 3 7 7 0 0012 17a7 7 0 009-4.21z"/>
+            </svg>
+        </span>
+    </label>
+    
+    <div class="unlock-overlay" id="unlockOverlay">
+        <div class="unlock-icon">✓</div>
+        <div class="unlock-message">UNLOCKED</div>
+        <div class="unlock-subtitle">Welcome back!</div>
+    </div>
+
     <div class="login-container">
-        <h1>🔒 Admin Login</h1>
+        <h1>"For The Worthy"</h1>
         {% if error %}
         <div class="error">{{ error }}</div>
         {% endif %}
-        <form method="POST">
-            <input type="password" name="password" placeholder="Nhập mật khẩu" required autofocus>
-            <button type="submit">Đăng nhập</button>
+        <form method="POST" id="loginForm">
+            <input type="password" name="password" placeholder="Nhập tên của bạn" required autofocus>
+            <button type="submit">Confirm</button>
         </form>
         <a href="/" class="back-link">← Về trang chủ</a>
     </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const unlockOverlay = document.getElementById('unlockOverlay');
+        const body = document.body;
+        const modeCheckbox = document.getElementById('mode-checkbox');
+        const modeToggle = document.getElementById('mode-toggle');
+
+        // Load saved mode from localStorage
+        const savedMode = localStorage.getItem('mode');
+        if (savedMode === 'light') {
+            body.classList.add('light-mode');
+            modeCheckbox.checked = true;
+            modeToggle.setAttribute('aria-checked', 'true');
+        } else {
+            modeCheckbox.checked = false;
+            modeToggle.setAttribute('aria-checked', 'false');
+        }
+
+        // Handle mode toggle
+        modeCheckbox.addEventListener('change', () => {
+            body.classList.toggle('light-mode');
+            if (body.classList.contains('light-mode')) {
+                localStorage.setItem('mode', 'light');
+                modeToggle.setAttribute('aria-checked', 'true');
+            } else {
+                localStorage.setItem('mode', 'dark');
+                modeToggle.setAttribute('aria-checked', 'false');
+            }
+        });
+
+        // Accessibility: toggle on label keypress (space or enter)
+        modeToggle.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                modeCheckbox.checked = !modeCheckbox.checked;
+                modeCheckbox.dispatchEvent(new Event('change'));
+            }
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(loginForm);
+            const response = await fetch('/admin/login', {
+                method: 'POST',
+                body: formData,
+                redirect: 'manual'
+            });
+
+            // Check if successfully redirected (status 302)
+            if (response.type === 'opaqueredirect' || response.status === 302) {
+                // Show unlock overlay
+                unlockOverlay.classList.add('show');
+                
+                // Redirect after 1.5 seconds
+                setTimeout(() => {
+                    window.location.href = '/admin';
+                }, 1500);
+            } else {
+                // If error, get the HTML and extract error message
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const errorDiv = doc.querySelector('.error');
+                
+                if (errorDiv) {
+                    // Show error message by replacing the page content
+                    const currentError = document.querySelector('.error');
+                    if (currentError) {
+                        currentError.remove();
+                    }
+                    const h1 = document.querySelector('.login-container h1');
+                    h1.insertAdjacentHTML('afterend', errorDiv.outerHTML);
+                }
+            }
+        });
+    </script>
 </body>
 </html>

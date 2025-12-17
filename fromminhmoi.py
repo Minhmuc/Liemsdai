@@ -19,8 +19,8 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
 app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 
-# Admin password - THAY ĐỔI MẬT KHẨU NÀY
-ADMIN_PASSWORD = 'admin123'
+# Admin passwords - THAY ĐỔI MẬT KHẨU NÀY
+ADMIN_PASSWORDS = ['liemdai', 'c^ng', 'hoanbucon', 'minhmucwjbi']
 
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
@@ -342,11 +342,11 @@ def admin_required(f):
 def admin_login():
     if request.method == 'POST':
         password = request.form.get('password')
-        if password == ADMIN_PASSWORD:
+        if password in ADMIN_PASSWORDS:
             session['admin_logged_in'] = True
             return redirect(url_for('admin'))
         else:
-            return render_template('admin_login.html', error='Sai mật khẩu!')
+            return render_template('admin_login.html', error='Từ Chối Truy Cập!')
     return render_template('admin_login.html')
 
 # Admin logout
