@@ -22,6 +22,14 @@ app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 # Admin passwords - THAY ĐỔI MẬT KHẨU NÀY
 ADMIN_PASSWORDS = ['liemdai', 'c^ng', 'hoanbucon', 'minhmucwjbi']
 
+# Password to display name mapping
+PASSWORD_NAMES = {
+    'hoanbucon': 'Hoàn Bự Con',
+    'c^ng': 'Ming King',
+    'minhmucwjbi': 'Strongest LiemDaiHiep',
+    'liemdai': 'LiemDai Admin'
+}
+
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
 DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)
@@ -345,6 +353,11 @@ def admin_login():
         # Normalize password to lowercase for case-insensitive comparison
         if password and password.lower() in [p.lower() for p in ADMIN_PASSWORDS]:
             session['admin_logged_in'] = True
+            # Store the original password (lowercase) to identify user
+            for admin_pwd in ADMIN_PASSWORDS:
+                if password.lower() == admin_pwd.lower():
+                    session['admin_user'] = admin_pwd
+                    break
             return redirect(url_for('admin'))
         else:
             return render_template('admin_login.html', error='Từ Chối Truy Cập!')
@@ -354,13 +367,16 @@ def admin_login():
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
+    session.pop('admin_user', None)
     return redirect(url_for('admin_login'))
 
 # Admin dashboard
 @app.route('/admin')
 @admin_required
 def admin():
-    return render_template('admin.html')
+    admin_user = session.get('admin_user', '')
+    display_name = PASSWORD_NAMES.get(admin_user, 'Admin')
+    return render_template('admin.html', admin_name=display_name)
 
 # Admin upload file
 @app.route('/admin/upload', methods=['POST'])

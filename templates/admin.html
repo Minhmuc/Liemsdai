@@ -98,6 +98,13 @@
             margin: 0;
         }
 
+        .admin-name {
+            color: var(--button-bg-color);
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1em;
+        }
+
         .logout-btn {
             padding: 10px 20px;
             background-color: #e74c3c;
@@ -369,6 +376,7 @@
                         </svg>
                     </span>
                 </label>
+                <span class="admin-name">Welcome, {{ admin_name }}</span>
                 <a href="/admin/logout" class="logout-btn">Đăng xuất</a>
             </div>
         </div>
@@ -536,7 +544,9 @@
         }
 
         async function deleteFile(filename) {
-            if (!confirm(`Bạn có chắc muốn xóa file "${filename}"?`)) {
+            // Show custom confirmation dialog
+            const confirmed = await showConfirmDialog(`Bạn có chắc muốn xóa file "${filename}"?`);
+            if (!confirmed) {
                 return;
             }
 
@@ -556,6 +566,143 @@
             } catch (error) {
                 showMessage('❌ Lỗi xóa file: ' + error.message, 'error');
             }
+        }
+
+        // Custom confirmation dialog
+        function showConfirmDialog(message) {
+            return new Promise((resolve) => {
+                // Create overlay
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.6);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                // Create dialog box
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    background: var(--container-bg-color);
+                    color: var(--text-color);
+                    padding: 30px;
+                    border-radius: 12px;
+                    border: 2px solid var(--button-bg-color);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                    font-family: 'Minecraft', Arial, sans-serif;
+                    max-width: 500px;
+                    text-align: center;
+                    animation: scaleIn 0.2s ease-out;
+                `;
+
+                // Message
+                const messageEl = document.createElement('p');
+                messageEl.style.cssText = `
+                    margin: 0 0 25px 0;
+                    font-size: 1.1em;
+                    line-height: 1.5;
+                `;
+                messageEl.textContent = message;
+
+                // Buttons container
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.style.cssText = `
+                    display: flex;
+                    gap: 15px;
+                    justify-content: center;
+                `;
+
+                // Confirm button
+                const confirmBtn = document.createElement('button');
+                confirmBtn.textContent = 'Xóa';
+                confirmBtn.style.cssText = `
+                    padding: 10px 30px;
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-family: 'Minecraft', Arial, sans-serif;
+                    font-size: 1em;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                `;
+                confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#c0392b';
+                confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#e74c3c';
+                confirmBtn.onclick = () => {
+                    overlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                        resolve(true);
+                    }, 200);
+                };
+
+                // Cancel button
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Hủy';
+                cancelBtn.style.cssText = `
+                    padding: 10px 30px;
+                    background-color: var(--button-bg-color);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-family: 'Minecraft', Arial, sans-serif;
+                    font-size: 1em;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                `;
+                cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = 'var(--button-hover-bg-color)';
+                cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = 'var(--button-bg-color)';
+                cancelBtn.onclick = () => {
+                    overlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                        resolve(false);
+                    }, 200);
+                };
+
+                // Assemble dialog
+                buttonsDiv.appendChild(confirmBtn);
+                buttonsDiv.appendChild(cancelBtn);
+                dialog.appendChild(messageEl);
+                dialog.appendChild(buttonsDiv);
+                overlay.appendChild(dialog);
+
+                // Add animations if not already added
+                if (!document.getElementById('confirm-dialog-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'confirm-dialog-style';
+                    style.textContent = `
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        @keyframes fadeOut {
+                            from { opacity: 1; }
+                            to { opacity: 0; }
+                        }
+                        @keyframes scaleIn {
+                            from {
+                                opacity: 0;
+                                transform: scale(0.8);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: scale(1);
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                document.body.appendChild(overlay);
+            });
         }
 
         function formatFileSize(bytes) {
