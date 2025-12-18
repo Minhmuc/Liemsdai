@@ -38,6 +38,15 @@
             -ms-user-select: none;
         }
 
+        a, button, input, img {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            pointer-events: auto;
+        }
+
         .background-image {
             position: fixed;
             top: 0;
@@ -431,10 +440,13 @@
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             handleFiles(files);
+            // Reset input value to allow selecting the same file again if needed
+            e.target.value = '';
         });
 
         function handleFiles(files) {
-            selectedFiles = files;
+            // Append new files to existing selection instead of replacing
+            selectedFiles = [...selectedFiles, ...files];
             displaySelectedFiles();
         }
 
