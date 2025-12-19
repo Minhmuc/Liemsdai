@@ -122,13 +122,14 @@ class GoogleDriveManager:
             traceback.print_exc()
             return None
     
-    def upload_file_object(self, file_object, filename):
+    def upload_file_object(self, file_object, filename, uploader=None):
         """
         Upload a file from memory (Flask file object)
         
         Args:
             file_object: File object from Flask request.files
             filename: Name to save on Drive
+            uploader: Name of person uploading (optional)
         
         Returns:
             File ID on success, None on failure
@@ -172,6 +173,15 @@ class GoogleDriveManager:
             
             if result:
                 print(f"✅ Upload successful! File ID: {result}")
+                # Set uploader property if provided
+                if uploader:
+                    from datetime import datetime
+                    properties = {
+                        'uploader': uploader,
+                        'upload_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    self.set_file_properties(result, properties)
+                    print(f"📝 Metadata saved: Uploaded by {uploader}")
             else:
                 print(f"❌ Upload failed - no file ID returned")
             
@@ -242,12 +252,33 @@ class GoogleDriveManager:
             print(f"❌ Error: {error}")
             return False
     
+    def set_file_properties(self, file_id, properties):
+        """
+        Set custom properties for a file
+        
+        Args:
+            file_id: Google Drive file ID
+            properties: Dictionary of properties to set
+        
+        Returns:
+            True on success, False on failure
+        """
+        try:
+            self.service.files().update(
+                fileId=file_id,
+                body={'properties': properties}
+            ).execute()
+            return True
+        except HttpError as error:
+            print(f"❌ Error setting properties: {error}")
+            return False
+    
     def list_files(self):
         """
         List all files in the Drive folder
         
         Returns:
-            List of file dictionaries with name, id, size, modifiedTime
+            List of file dictionaries with name, id, size, modifiedTime, properties
         """
         try:
             query = f"'{self.folder_id}' in parents and trashed=false" if self.folder_id else "trashed=false"
@@ -255,7 +286,7 @@ class GoogleDriveManager:
             results = self.service.files().list(
                 q=query,
                 pageSize=1000,
-                fields="files(id, name, size, modifiedTime, mimeType)"
+                fields="files(id, name, size, modifiedTime, mimeType, properties)"
             ).execute()
             
             files = results.get('files', [])

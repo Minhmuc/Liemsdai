@@ -426,12 +426,10 @@ def admin_upload():
         if file and file.filename:
             try:
                 if drive_manager:
-                    # Upload to Google Drive
-                    file_id = drive_manager.upload_file_object(file, file.filename)
+                    # Upload to Google Drive with uploader info
+                    file_id = drive_manager.upload_file_object(file, file.filename, uploader_name)
                     if file_id:
                         uploaded_files.append(file.filename)
-                        # Save metadata
-                        save_file_metadata(file.filename, uploader_name)
                     else:
                         errors.append(f"{file.filename}: Failed to upload to Drive")
                 else:
@@ -439,7 +437,7 @@ def admin_upload():
                     filepath = os.path.join(DATA_FOLDER, file.filename)
                     file.save(filepath)
                     uploaded_files.append(file.filename)
-                    # Save metadata
+                    # Save metadata for local files
                     save_file_metadata(file.filename, uploader_name)
             except Exception as e:
                 errors.append(f"{file.filename}: {str(e)}")
@@ -461,12 +459,12 @@ def admin_files():
             # List from Google Drive
             drive_files = drive_manager.list_files()
             for file in drive_files:
-                metadata = get_file_metadata(file['name'])
+                properties = file.get('properties', {})
                 files.append({
                     'name': file['name'],
                     'size': int(file.get('size', 0)),
                     'modified': file.get('modifiedTime', 'Unknown'),
-                    'uploader': metadata['uploader'] if metadata else 'Unknown'
+                    'uploader': properties.get('uploader', 'Unknown')
                 })
         else:
             # List from local storage
