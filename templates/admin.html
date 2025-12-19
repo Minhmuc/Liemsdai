@@ -530,12 +530,13 @@
 
                 let html = '';
                 files.forEach(file => {
+                    const uploader = file.uploader || 'Unknown';
                     html += `
                         <div class="file-item">
                             <div class="file-info">
                                 <div class="file-name">${file.name}</div>
                                 <div class="file-meta">
-                                    Size: ${formatFileSize(file.size)} | Modified: ${file.modified}
+                                    Size: ${formatFileSize(file.size)} | Modified: ${file.modified} | Uploaded by: ${uploader}
                                 </div>
                             </div>
                             <div class="file-actions">

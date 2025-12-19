@@ -10,10 +10,13 @@ from google_drive_manager import GoogleDriveManager
 
 UPLOAD_FOLDER = 'uploaded'
 DATA_FOLDER = 'Data'
+METADATA_FOLDER = 'metadata'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 if not os.path.exists(DATA_FOLDER):
     os.makedirs(DATA_FOLDER)
+if not os.path.exists(METADATA_FOLDER):
+    os.makedirs(METADATA_FOLDER)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
@@ -33,6 +36,32 @@ PASSWORD_NAMES = {
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
 DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)
+
+# Metadata functions
+def save_file_metadata(filename, uploader):
+    """Save metadata about file upload"""
+    metadata_file = os.path.join(METADATA_FOLDER, f"{filename}.json")
+    metadata = {
+        'filename': filename,
+        'uploader': uploader,
+        'upload_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    try:
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving metadata: {e}")
+
+def get_file_metadata(filename):
+    """Get metadata about file upload"""
+    metadata_file = os.path.join(METADATA_FOLDER, f"{filename}.json")
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error reading metadata: {e}")
+    return None
 
 print(f"🔧 USE_GOOGLE_DRIVE: {USE_GOOGLE_DRIVE}")
 print(f"🔧 DRIVE_FOLDER_ID: {DRIVE_FOLDER_ID}")
@@ -389,6 +418,10 @@ def admin_upload():
     uploaded_files = []
     errors = []
     
+    # Get uploader info
+    admin_user = session.get('admin_user', '')
+    uploader_name = PASSWORD_NAMES.get(admin_user, 'Admin')
+    
     for file in files:
         if file and file.filename:
             try:
@@ -397,6 +430,8 @@ def admin_upload():
                     file_id = drive_manager.upload_file_object(file, file.filename)
                     if file_id:
                         uploaded_files.append(file.filename)
+                        # Save metadata
+                        save_file_metadata(file.filename, uploader_name)
                     else:
                         errors.append(f"{file.filename}: Failed to upload to Drive")
                 else:
@@ -404,6 +439,8 @@ def admin_upload():
                     filepath = os.path.join(DATA_FOLDER, file.filename)
                     file.save(filepath)
                     uploaded_files.append(file.filename)
+                    # Save metadata
+                    save_file_metadata(file.filename, uploader_name)
             except Exception as e:
                 errors.append(f"{file.filename}: {str(e)}")
     
@@ -424,10 +461,12 @@ def admin_files():
             # List from Google Drive
             drive_files = drive_manager.list_files()
             for file in drive_files:
+                metadata = get_file_metadata(file['name'])
                 files.append({
                     'name': file['name'],
                     'size': int(file.get('size', 0)),
-                    'modified': file.get('modifiedTime', 'Unknown')
+                    'modified': file.get('modifiedTime', 'Unknown'),
+                    'uploader': metadata['uploader'] if metadata else 'Unknown'
                 })
         else:
             # List from local storage
@@ -436,10 +475,12 @@ def admin_files():
                 if os.path.isfile(filepath):
                     size = os.path.getsize(filepath)
                     modified = datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%Y-%m-%d %H:%M:%S')
+                    metadata = get_file_metadata(filename)
                     files.append({
                         'name': filename,
                         'size': size,
-                        'modified': modified
+                        'modified': modified,
+                        'uploader': metadata['uploader'] if metadata else 'Unknown'
                     })
         
         return jsonify(files)
