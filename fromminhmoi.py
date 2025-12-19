@@ -23,14 +23,13 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
 app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 
 # Admin passwords - THAY ĐỔI MẬT KHẨU NÀY
-ADMIN_PASSWORDS = ['liemdai', 'c^ng', 'hoanbucon', 'minhmucwjbi']
+ADMIN_PASSWORDS = ['c^ng', 'hoanbucon', 'minhmuc']
 
 # Password to display name mapping
 PASSWORD_NAMES = {
     'hoanbucon': 'Hoàn Bự Con',
     'c^ng': 'Ming King',
-    'minhmucwjbi': 'Strongest LiemDaiHiep',
-    'liemdai': 'LiemDai Admin'
+    'minhmuc': 'Strongest LiemDaiHiep'
 }
 
 # Google Drive setup
