@@ -16,7 +16,7 @@ Made for students, teachers, and anyone who looks at LMS JSON data and thinks:
   📋 One-click copy so you can flex your notes.  
   📄 Export to `.docx` because Word still rules the world.
 
-- **Casual Mode**  
+- **Casual Mode 🐔**  
   📜 Browse server files like you’re in 2005.  
   ⬇️ Download without thinking too hard.  
   🫠 So simple, even your goldfish can use it.
