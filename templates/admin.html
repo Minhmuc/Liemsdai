@@ -192,6 +192,7 @@
 
         .file-list {
             margin-top: 30px;
+            padding-bottom: 120px;
         }
 
         .file-item {
@@ -205,6 +206,61 @@
 
         .file-item:hover {
             background-color: var(--file-item-hover);
+        }
+
+        .file-item.selected {
+            background-color: rgba(114, 137, 218, 0.2);
+        }
+
+        .file-checkbox {
+            margin-right: 15px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            border: 2px solid var(--button-bg-color);
+            border-radius: 6px;
+            background-color: var(--container-bg-color);
+            position: relative;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .file-checkbox:hover {
+            border-color: var(--button-hover-bg-color);
+            transform: scale(1.1);
+            box-shadow: 0 0 8px rgba(114, 137, 218, 0.5);
+        }
+
+        .file-checkbox:checked {
+            background-color: var(--button-bg-color);
+            border-color: var(--button-bg-color);
+        }
+
+        .file-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            animation: checkPop 0.3s ease;
+        }
+
+        @keyframes checkPop {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
         }
 
         .file-info {
@@ -225,6 +281,55 @@
         .file-actions {
             display: flex;
             gap: 10px;
+            position: relative;
+            z-index: 10;
+        }
+
+        body.select-mode .file-actions {
+            display: none;
+        }
+
+        body.select-mode .file-item {
+            cursor: pointer;
+        }
+
+        .bulk-actions {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            padding: 20px 30px;
+            background-color: var(--container-bg-color);
+            border-radius: 12px;
+            border: 2px solid var(--button-bg-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .bulk-actions.active {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .bulk-actions-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
 
         .message {
@@ -392,6 +497,15 @@
         
         <div id="messageArea"></div>
 
+        <div class="bulk-actions" id="bulkActions">
+            <div class="bulk-actions-left">
+                <span id="selectedCount" style="font-weight: bold;">0 files selected</span>
+                <button class="btn btn-primary" onclick="downloadSelected()">Download Selected</button>
+                <button class="btn btn-danger" onclick="deleteSelected()">Delete Selected</button>
+            </div>
+            <button class="btn" onclick="deselectAll()" style="background-color: #95a5a6;">Deselect All</button>
+        </div>
+
         <div class="upload-section" id="uploadSection">
             <h3>📤 Upload Files</h3>
             <p>Click hoặc kéo thả file vào đây</p>
@@ -413,7 +527,7 @@
         const fileListContent = document.getElementById('fileListContent');
         const messageArea = document.getElementById('messageArea');
 
-        let selectedFiles = [];
+        let selectedFilesToUpload = [];
 
         uploadSection.addEventListener('click', (e) => {
             if (e.target !== fileInput) {
@@ -446,19 +560,19 @@
 
         function handleFiles(files) {
             // Append new files to existing selection instead of replacing
-            selectedFiles = [...selectedFiles, ...files];
+            selectedFilesToUpload = [...selectedFilesToUpload, ...files];
             displaySelectedFiles();
         }
 
         function displaySelectedFiles() {
-            if (selectedFiles.length === 0) {
+            if (selectedFilesToUpload.length === 0) {
                 selectedFilesDiv.innerHTML = '';
                 return;
             }
 
             let html = '<div class="selected-files">';
-            html += `<h3>Files đã chọn (${selectedFiles.length})</h3>`;
-            selectedFiles.forEach((file, index) => {
+            html += `<h3>Files đã chọn (${selectedFilesToUpload.length})</h3>`;
+            selectedFilesToUpload.forEach((file, index) => {
                 const size = formatFileSize(file.size);
                 html += `
                     <div class="selected-file">
@@ -473,18 +587,18 @@
         }
 
         function removeFile(index) {
-            selectedFiles.splice(index, 1);
+            selectedFilesToUpload.splice(index, 1);
             displaySelectedFiles();
         }
 
         async function uploadFiles() {
-            if (selectedFiles.length === 0) {
+            if (selectedFilesToUpload.length === 0) {
                 showMessage('Vui lòng chọn file trước!', 'error');
                 return;
             }
 
             const formData = new FormData();
-            selectedFiles.forEach(file => {
+            selectedFilesToUpload.forEach(file => {
                 formData.append('files', file);
             });
 
@@ -499,7 +613,7 @@
                 
                 if (result.success > 0) {
                     showMessage(`✅ Upload thành công ${result.success} file(s)!`, 'success');
-                    selectedFiles = [];
+                    selectedFilesToUpload = [];
                     selectedFilesDiv.innerHTML = '';
                     fileInput.value = '';
                     loadFiles();
@@ -532,14 +646,15 @@
                 files.forEach(file => {
                     const uploader = file.uploader || 'Unknown';
                     html += `
-                        <div class="file-item">
+                        <div class="file-item" data-filename="${escapeHtml(file.name)}" onclick="toggleFileByClick(event, '${escapeHtml(file.name)}')">
+                            <input type="checkbox" class="file-checkbox" onchange="toggleFileSelection(this)" data-filename="${escapeHtml(file.name)}">
                             <div class="file-info">
                                 <div class="file-name">${file.name}</div>
                                 <div class="file-meta">
                                     Size: ${formatFileSize(file.size)} | Modified: ${file.modified} | Uploaded by: ${uploader}
                                 </div>
                             </div>
-                            <div class="file-actions">
+                            <div class="file-actions" onclick="event.stopPropagation()">
                                 <a href="/download/data/${encodeURIComponent(file.name)}" class="btn btn-primary" download>
                                     Download
                                 </a>
@@ -553,6 +668,143 @@
                 fileListContent.innerHTML = html;
             } catch (error) {
                 fileListContent.innerHTML = '<p>Error loading files: ' + error.message + '</p>';
+            }
+        }
+
+        // Bulk selection functions
+        let selectedFiles = new Set();
+        let selectModeActive = false;
+
+        function toggleFileByClick(event, filename) {
+            // Only allow clicking to select when select mode is active
+            if (!selectModeActive) {
+                return;
+            }
+            
+            // Don't toggle if clicking on checkbox itself or action buttons
+            if (event.target.classList.contains('file-checkbox') || 
+                event.target.closest('.file-actions')) {
+                return;
+            }
+            
+            const checkbox = document.querySelector(`.file-checkbox[data-filename="${filename}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                toggleFileSelection(checkbox);
+            }
+        }
+
+        function toggleFileSelection(checkbox) {
+            const filename = checkbox.dataset.filename;
+            const fileItem = checkbox.closest('.file-item');
+            
+            if (checkbox.checked) {
+                selectedFiles.add(filename);
+                fileItem.classList.add('selected');
+                // Activate select mode when first file is selected
+                if (!selectModeActive) {
+                    selectModeActive = true;
+                    document.body.classList.add('select-mode');
+                }
+            } else {
+                selectedFiles.delete(filename);
+                fileItem.classList.remove('selected');
+            }
+            
+            updateBulkActionsUI();
+        }
+
+        function updateBulkActionsUI() {
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            if (selectedFiles.size > 0) {
+                bulkActions.classList.add('active');
+                selectedCount.textContent = `${selectedFiles.size} file(s) selected`;
+            } else {
+                bulkActions.classList.remove('active');
+                // Exit select mode when no files selected
+                if (selectModeActive) {
+                    selectModeActive = false;
+                    document.body.classList.remove('select-mode');
+                }
+            }
+        }
+
+        function deselectAll() {
+            selectedFiles.clear();
+            selectModeActive = false;
+            document.body.classList.remove('select-mode');
+            document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
+            updateBulkActionsUI();
+        }
+
+        async function deleteSelected() {
+            if (selectedFiles.size === 0) return;
+            
+            const confirmed = await showConfirmDialog(`Bạn có chắc muốn xóa ${selectedFiles.size} file(s)?`);
+            if (!confirmed) return;
+
+            const filenames = Array.from(selectedFiles);
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const filename of filenames) {
+                try {
+                    const response = await fetch('/admin/delete/' + encodeURIComponent(filename), {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    errorCount++;
+                }
+            }
+
+            showMessage(`✅ Đã xóa ${successCount} file(s)` + (errorCount > 0 ? ` | ❌ Lỗi: ${errorCount}` : ''), successCount > 0 ? 'success' : 'error');
+            deselectAll();
+            loadFiles();
+        }
+
+        async function downloadSelected() {
+            if (selectedFiles.size === 0) return;
+            
+            const filenames = Array.from(selectedFiles);
+            
+            if (filenames.length === 1) {
+                // Single file - direct download
+                window.location.href = '/download/data/' + encodeURIComponent(filenames[0]);
+            } else {
+                // Multiple files - download as zip
+                try {
+                    const response = await fetch('/admin/download-multiple', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: filenames })
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `files_${Date.now()}.zip`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        a.remove();
+                        showMessage(`✅ Đã tải ${filenames.length} file(s) as zip`, 'success');
+                    } else {
+                        showMessage('❌ Lỗi tải files', 'error');
+                    }
+                } catch (error) {
+                    showMessage('❌ Lỗi: ' + error.message, 'error');
+                }
             }
         }
 

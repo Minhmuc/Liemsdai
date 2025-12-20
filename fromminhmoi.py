@@ -510,6 +510,51 @@ def admin_delete(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Admin download multiple files as zip
+@app.route('/admin/download-multiple', methods=['POST'])
+@admin_required
+def admin_download_multiple():
+    try:
+        data = request.get_json()
+        filenames = data.get('files', [])
+        
+        if not filenames:
+            return jsonify({'error': 'No files specified'}), 400
+        
+        # Create zip file in memory
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for filename in filenames:
+                if '..' in filename or filename.startswith('/'):
+                    continue
+                
+                try:
+                    if drive_manager:
+                        # Download from Google Drive
+                        file_id = drive_manager.get_file_id_by_name(filename)
+                        if file_id:
+                            file_content = drive_manager.download_file_to_memory(file_id)
+                            if file_content:
+                                zf.writestr(filename, file_content)
+                    else:
+                        # Read from local storage
+                        filepath = os.path.join(DATA_FOLDER, filename)
+                        if os.path.isfile(filepath):
+                            zf.write(filepath, filename)
+                except Exception as e:
+                    print(f"Error adding {filename} to zip: {e}")
+                    continue
+        
+        memory_file.seek(0)
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'files_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

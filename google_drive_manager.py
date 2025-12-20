@@ -230,6 +230,32 @@ class GoogleDriveManager:
             print(f"❌ Download error: {error}")
             return False
     
+    def download_file_to_memory(self, file_id):
+        """
+        Download a file to memory (returns bytes)
+        
+        Args:
+            file_id: Google Drive file ID
+        
+        Returns:
+            File content as bytes, or None on failure
+        """
+        try:
+            request = self.service.files().get_media(fileId=file_id)
+            file_handle = io.BytesIO()
+            downloader = MediaIoBaseDownload(file_handle, request)
+            
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+            
+            file_handle.seek(0)
+            return file_handle.read()
+        
+        except HttpError as error:
+            print(f"❌ Download to memory error: {error}")
+            return None
+    
     def download_file_by_name(self, filename, destination_path):
         """
         Download a file by its name

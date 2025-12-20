@@ -245,26 +245,45 @@
         function copyToClipboard() {
             const questionList = document.getElementById('question-list');
             if (!questionList) { alert('Không có nội dung để copy!'); return; }
-            const range = document.createRange();
-            range.selectNode(questionList);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-            try {
-                document.execCommand('copy');
-                
-                // Change button text to "Đã copy" for 1 second
-                const copyButton = document.querySelector('.copy-button');
-                const originalText = copyButton.innerHTML;
-                copyButton.innerHTML = 'Đã copy';
-                
-                setTimeout(() => {
-                    copyButton.innerHTML = originalText;
-                }, 1000);
-                
-            } catch (err) {
-                alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
+            
+            const copyButton = document.querySelector('.copy-button');
+            const originalText = copyButton.innerHTML;
+            
+            // Get text content from question-list
+            const textToCopy = questionList.innerText || questionList.textContent;
+            
+            // Use modern Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                // Modern async clipboard API
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    copyButton.innerHTML = 'Đã copy';
+                    setTimeout(() => {
+                        copyButton.innerHTML = originalText;
+                    }, 1000);
+                }).catch(err => {
+                    console.error('Copy failed:', err);
+                    alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
+                });
+            } else {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    copyButton.innerHTML = 'Đã copy';
+                    setTimeout(() => {
+                        copyButton.innerHTML = originalText;
+                    }, 1000);
+                } catch (err) {
+                    console.error('Copy failed:', err);
+                    alert('Có lỗi xảy ra khi cố gắng copy nội dung!');
+                }
+                document.body.removeChild(textarea);
             }
-            window.getSelection().removeAllRanges();
         }
 
         // Nếu muốn: tải động docx nếu chưa có (thử vài CDN)
