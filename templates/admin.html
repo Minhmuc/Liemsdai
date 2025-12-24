@@ -182,23 +182,74 @@
         .btn-danger {
             background-color: #e74c3c;
             color: white;
-            padding: 8px 16px;
+            padding: 10px;
             font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: auto;
         }
 
         .btn-danger:hover {
             background-color: #c0392b;
+            transform: scale(1.1);
         }
 
         .btn-success {
             background-color: #27ae60;
             color: white;
-            padding: 8px 16px;
+            padding: 10px;
             font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: auto;
         }
 
         .btn-success:hover {
             background-color: #229954;
+            transform: scale(1.1);
+        }
+
+        .btn-primary {
+            padding: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: auto;
+        }
+
+        .file-actions .btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .file-actions .btn {
+            position: relative;
+        }
+
+        .file-actions .btn::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            font-family: Arial, sans-serif;
+        }
+
+        .file-actions .btn:hover::after {
+            opacity: 1;
         }
 
         .file-list {
@@ -667,15 +718,21 @@
                             </div>
                             <div class="file-actions" onclick="event.stopPropagation()">
                                 ${file.name.endsWith('.docx') ? `
-                                <button class="btn btn-success" onclick="previewDocx('${escapeHtml(file.name)}')">
-                                    Preview
+                                <button class="btn btn-success" onclick="previewDocx('${escapeHtml(file.name)}')" title="Preview">
+                                    <svg viewBox="0 0 576 512" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M288 144a110.94 110.94 0 0 0-31.24 5 55.4 55.4 0 0 1 7.24 27 56 56 0 0 1-56 56 55.4 55.4 0 0 1-27-7.24A111.71 111.71 0 1 0 288 144zm284.52 97.4C518.29 135.59 410.93 64 288 64S57.68 135.64 3.48 241.41a32.35 32.35 0 0 0 0 29.19C57.71 376.41 165.07 448 288 448s230.32-71.64 284.52-177.41a32.35 32.35 0 0 0 0-29.19zM288 400c-98.65 0-189.09-55-237.93-144C98.91 167 189.34 112 288 112s189.09 55 237.93 144C477.1 345 386.66 400 288 400z"/>
+                                    </svg>
                                 </button>
                                 ` : ''}
-                                <a href="/download/data/${encodeURIComponent(file.name)}" class="btn btn-primary" download>
-                                    Download
+                                <a href="/download/data/${encodeURIComponent(file.name)}" class="btn btn-primary" download title="Download">
+                                    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M382.56 233.376C379.968 227.648 374.272 224 368 224h-64V16c0-8.832-7.168-16-16-16h-64c-8.832 0-16 7.168-16 16v208h-64c-6.272 0-11.968 3.648-14.56 9.376-2.624 5.728-1.6 12.416 2.528 17.152l112 128c3.04 3.488 7.424 5.472 12.032 5.472s8.992-1.984 12.032-5.472l112-128c4.16-4.704 5.12-11.424 2.528-17.152zM432 352v96H80v-96H16v96c0 35.296 28.704 64 64 64h352c35.296 0 64-28.704 64-64v-96h-64z"/>
+                                    </svg>
                                 </a>
-                                <button class="btn btn-danger" onclick="deleteFile('${escapeHtml(file.name)}')">
-                                    Xóa
+                                <button class="btn btn-danger" onclick="deleteFile('${escapeHtml(file.name)}')" title="Xóa">
+                                    <svg viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M336 64l-33.6-44.8C293.3 7.1 279.1 0 264 0h-80c-15.1 0-29.3 7.1-38.4 19.2L112 64H24C10.7 64 0 74.7 0 88v2c0 3.3 2.7 6 6 6h26v368c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V96h26c3.3 0 6-2.7 6-6v-2c0-13.3-10.7-24-24-24h-88zM184 32h80c5 0 9.8 2.4 12.8 6.4L296 64H152l19.2-25.6c3-4 7.8-6.4 12.8-6.4zm200 432c0 8.8-7.2 16-16 16H80c-8.8 0-16-7.2-16-16V96h320v368zm-176-44V172c0-6.6-5.4-12-12-12h-8c-6.6 0-12 5.4-12 12v248c0 6.6 5.4 12 12 12h8c6.6 0 12-5.4 12-12zm96 0V172c0-6.6-5.4-12-12-12h-8c-6.6 0-12 5.4-12 12v248c0 6.6 5.4 12 12 12h8c6.6 0 12-5.4 12-12z"/>
+                                    </svg>
                                 </button>
                             </div>
                         </div>
