@@ -190,6 +190,17 @@
             background-color: #c0392b;
         }
 
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .btn-success:hover {
+            background-color: #229954;
+        }
+
         .file-list {
             margin-top: 30px;
             padding-bottom: 120px;
@@ -655,6 +666,11 @@
                                 </div>
                             </div>
                             <div class="file-actions" onclick="event.stopPropagation()">
+                                ${file.name.endsWith('.docx') ? `
+                                <button class="btn btn-success" onclick="previewDocx('${escapeHtml(file.name)}')">
+                                    Preview
+                                </button>
+                                ` : ''}
                                 <a href="/download/data/${encodeURIComponent(file.name)}" class="btn btn-primary" download>
                                     Download
                                 </a>
@@ -1033,7 +1049,118 @@
             }
         });
 
+        // DOCX Preview functionality
+        async function previewDocx(filename) {
+            try {
+                // Create preview modal
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.8);
+                    z-index: 20000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const previewContainer = document.createElement('div');
+                previewContainer.style.cssText = `
+                    background: white;
+                    width: 90%;
+                    max-width: 1000px;
+                    height: 90%;
+                    border-radius: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                    overflow: hidden;
+                `;
+
+                // Header
+                const header = document.createElement('div');
+                header.style.cssText = `
+                    background: #2C2F33;
+                    color: white;
+                    padding: 15px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-family: 'Minecraft', Arial, sans-serif;
+                `;
+                header.innerHTML = `
+                    <span style="font-size: 1.1em;">${escapeHtml(filename)}</span>
+                    <button onclick="this.closest('.preview-modal').remove()" style="
+                        background: #e74c3c;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-family: 'Minecraft', Arial, sans-serif;
+                    ">✕ Đóng</button>
+                `;
+
+                // Content area with loading
+                const contentArea = document.createElement('div');
+                contentArea.style.cssText = `
+                    flex: 1;
+                    overflow: auto;
+                    padding: 40px;
+                    background: white;
+                `;
+                contentArea.innerHTML = '<p style="text-align: center; color: #333; font-size: 1.2em;">⏳ Đang tải preview...</p>';
+
+                previewContainer.appendChild(header);
+                previewContainer.appendChild(contentArea);
+                modal.appendChild(previewContainer);
+                modal.className = 'preview-modal';
+                document.body.appendChild(modal);
+
+                // Fetch DOCX file
+                const response = await fetch('/download/data/' + encodeURIComponent(filename));
+                if (!response.ok) throw new Error('Không thể tải file');
+
+                const blob = await response.blob();
+                
+                // Use docx-preview to render DOCX (y hệt Word)
+                if (typeof docx !== 'undefined') {
+                    contentArea.innerHTML = ''; // Clear loading
+                    await docx.renderAsync(blob, contentArea, null, {
+                        className: 'docx-wrapper',
+                        inWrapper: true,
+                        ignoreWidth: false,
+                        ignoreHeight: false,
+                        ignoreFonts: false,
+                        breakPages: true,
+                        experimental: true
+                    });
+                } else {
+                    throw new Error('docx-preview library chưa load');
+                }
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('❌ Lỗi preview: ' + error.message);
+                const modals = document.querySelectorAll('.preview-modal');
+                modals.forEach(m => m.remove());
+            }
+        }
+
+        // Close modal on outside click
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('preview-modal')) {
+                e.target.remove();
+            }
+        });
+
         window.onload = loadFiles;
     </script>
+    <!-- docx-preview CDN - Render DOCX y hệt Microsoft Word -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx-preview@0.3.0/dist/docx-preview.min.js"></script>
 </body>
 </html>
