@@ -92,6 +92,18 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
     result = {}
     idx = 1
     errors = []
+    
+    def extract_questions_from_data(data):
+        """Helper function to extract questions from different JSON structures"""
+        # Cấu trúc mới: {'test': [...]}
+        if 'test' in data and isinstance(data['test'], list):
+            return data['test']
+        # Cấu trúc cũ: {'data': [{'test': [...]}]}
+        elif 'data' in data and isinstance(data['data'], list) and len(data['data']) > 0:
+            if 'test' in data['data'][0]:
+                return data['data'][0]['test']
+        return []
+    
     if files:
         for file in files:
             if file:
@@ -104,7 +116,13 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                         else:
                             # Đọc file json
                             data = json.load(file)
-                        for question in data['data'][0]['test']:
+                        
+                        questions = extract_questions_from_data(data)
+                        if not questions:
+                            errors.append(f"File {file.filename} không chứa câu hỏi hợp lệ")
+                            continue
+                        
+                        for question in questions:
                             question_id = question['id']
                             if id_filter and question_id != id_filter:
                                 continue
@@ -138,7 +156,13 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
         for json_code in json_codes:
             try:
                 data = json.loads(json_code)
-                for question in data['data'][0]['test']:
+                
+                questions = extract_questions_from_data(data)
+                if not questions:
+                    errors.append(f"JSON code không chứa câu hỏi hợp lệ")
+                    continue
+                
+                for question in questions:
                     question_id = question['id']
                     if id_filter and question_id != id_filter:
                         continue
