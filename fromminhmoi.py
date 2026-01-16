@@ -104,6 +104,85 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                 return data['data'][0]['test']
         return []
     
+    def process_question(question, idx):
+        """Process a single question based on its type"""
+        question_id = question['id']
+        if id_filter and question_id != id_filter:
+            return None, idx
+            
+        question_type = question.get('question_type', 'radio')
+        question_text = question['question_direction']
+        
+        # Kiểm tra xem câu hỏi có chứa hình ảnh hay không
+        has_image = '<img' in question_text
+        
+        # Clean HTML nhưng giữ lại dấu gạch dưới cho câu điền từ
+        question_cleaned = clean_html(question_text)
+        if has_image:
+            question_cleaned += " [hình ảnh]"
+        
+        formatted_question = {
+            "ID": question_id,
+            "Loại": question_type,
+            "Câu": f"Câu {idx}: {question_cleaned}",
+        }
+        
+        # Handle different question types
+        if question_type == 'radio' or question_type == 'checkbox':
+            # Multiple choice questions (single or multiple answers)
+            answers = question.get('answer_option', [])
+            if answers:
+                answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
+                formatted_question["Đáp án"] = answer_cleaned
+                if question_type == 'checkbox':
+                    formatted_question["Loại"] = "checkbox (chọn nhiều)"
+            
+        elif question_type == 'group-radio':
+            # True/False questions with parent-child structure
+            group_id = question.get('group_id', 0)
+            if group_id == 0:
+                # This is the parent question
+                formatted_question["Có các câu đúng/sai"] = True
+            else:
+                # This is a child question with Đúng/Sai options
+                formatted_question["Parent_ID"] = group_id
+                formatted_question["Là câu đúng/sai"] = True
+                answers = question.get('answer_option', [])
+                if answers:
+                    answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
+                    formatted_question["Đáp án"] = answer_cleaned
+            
+        elif question_type == 'drag_drop':
+            # Drag and drop questions (matching)
+            group_id = question.get('group_id', 0)
+            if group_id == 0:
+                # This is the parent question with all options
+                answers = question.get('answer_option', [])
+                formatted_question["Các lựa chọn"] = [clean_html(answer['value']) for answer in answers]
+                formatted_question["Có các câu ghép"] = True
+            else:
+                # This is a child question that needs to be matched
+                formatted_question["Parent_ID"] = group_id
+                formatted_question["Là câu ghép"] = True
+                
+        elif question_type == 'group-input':
+            # Input questions (fill in the blank)
+            group_id = question.get('group_id', 0)
+            if group_id == 0:
+                # This is the parent question - keep underscores
+                formatted_question["Có các câu điền"] = True
+            else:
+                # This is a child question - this is the answer
+                formatted_question["Parent_ID"] = group_id
+                formatted_question["Là đáp án điền"] = True
+                formatted_question["Đáp án"] = question_cleaned
+                
+        else:
+            # Unknown question type
+            formatted_question["Đáp án"] = f"Loại câu hỏi không xác định: {question_type}"
+        
+        return formatted_question, idx + 1
+    
     if files:
         for file in files:
             if file:
@@ -123,27 +202,10 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                             continue
                         
                         for question in questions:
-                            question_id = question['id']
-                            if id_filter and question_id != id_filter:
-                                continue
-                            question_text = question['question_direction']
-                            answers = question['answer_option']
-
-                            question_cleaned = clean_html(question_text)
-                            answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
-
-                            # Kiểm tra xem câu hỏi có chứa hình ảnh hay không
-                            if '<img' in question_text:
-                                question_cleaned += " [hình ảnh]"
-
-                            formatted_question = {
-                                "ID": question_id,
-                                "Câu": f"Câu {idx}: {question_cleaned}",
-                                "Đáp án": answer_cleaned
-                            }
-                            if question_id not in result:
-                                result[question_id] = formatted_question
-                            idx += 1
+                            formatted_question, idx = process_question(question, idx)
+                            if formatted_question and formatted_question['ID'] not in result:
+                                result[formatted_question['ID']] = formatted_question
+                                
                     except json.JSONDecodeError as e:
                         errors.append(f"File {file.filename} không đúng định dạng JSON: {e}")
                     except KeyError as e:
@@ -152,6 +214,7 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                         errors.append(f"File {file.filename} có lỗi: {e}")
                 else:
                     errors.append(f"File {file.filename} không phải là file txt hoặc json")
+                    
     if json_codes:
         for json_code in json_codes:
             try:
@@ -163,33 +226,17 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
                     continue
                 
                 for question in questions:
-                    question_id = question['id']
-                    if id_filter and question_id != id_filter:
-                        continue
-                    question_text = question['question_direction']
-                    answers = question['answer_option']
-
-                    question_cleaned = clean_html(question_text)
-                    answer_cleaned = {chr(65 + i): clean_html(answer['value']) for i, answer in enumerate(answers)}
-
-                    # Kiểm tra xem câu hỏi có chứa hình ảnh hay không
-                    if '<img' in question_text:
-                        question_cleaned += " [hình ảnh]"
-
-                    formatted_question = {
-                        "ID": question_id,
-                        "Câu": f"Câu {idx}: {question_cleaned}",
-                        "Đáp án": answer_cleaned
-                    }
-                    if question_id not in result:
-                        result[question_id] = formatted_question
-                    idx += 1
+                    formatted_question, idx = process_question(question, idx)
+                    if formatted_question and formatted_question['ID'] not in result:
+                        result[formatted_question['ID']] = formatted_question
+                        
             except json.JSONDecodeError as e:
                 errors.append(f"JSON code không đúng định dạng: {e}")
             except KeyError as e:
                 errors.append(f"JSON code không đúng định dạng: {e}")
             except Exception as e:
                 errors.append(f"JSON code có lỗi: {e}")
+                
     return list(result.values()), errors
 
 def clean_html(raw_html):
@@ -376,9 +423,13 @@ def dev():
     # Sắp xếp các câu hỏi theo ID
     sorted_questions = sorted(questions.values(), key=lambda x: x['ID'])
 
-    # Đánh số lại các câu hỏi theo thứ tự
-    for idx, question in enumerate(sorted_questions, start=1):
-        question['Câu'] = f"Câu {idx}: {question['Câu'].split(': ', 1)[1]}"
+    # Đánh số lại chỉ các câu hỏi chính (không phải câu con)
+    main_idx = 1
+    for question in sorted_questions:
+        # Chỉ đánh số câu hỏi chính, bỏ qua câu con
+        if not question.get('Là câu ghép') and not question.get('Là đáp án điền'):
+            question['Câu'] = f"Câu {main_idx}: {question['Câu'].split(': ', 1)[1]}"
+            main_idx += 1
     
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):

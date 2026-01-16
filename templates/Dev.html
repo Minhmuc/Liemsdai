@@ -131,16 +131,71 @@
                 <p>Tổng số câu hỏi: {{ total_questions }}</p>
                 <div id="question-list">
                     {% for q in questions %}
-                        <div>
+                        {% if not q.get('Là câu ghép') and not q.get('Là đáp án điền') and not q.get('Là câu đúng/sai') %}
+                        <div style="margin-bottom: 20px; padding: 10px; border-left: 3px solid #7289DA;">
                             <strong>ID:</strong> {{ q.ID }}<br>
                             <strong>{{ q.Câu }}</strong><br>
-                            <strong>Đáp án:</strong>
-                            <ul>
-                                {% for key, value in q['Đáp án'].items() %}
-                                    <li>{{ key }}. {{ value }}</li>
-                                {% endfor %}
-                            </ul>
+                            
+                            {% if (q.Loại == 'radio' or q.Loại.startswith('checkbox')) and q.get('Đáp án') %}
+                                {% set answers = q.get('Đáp án') %}
+                                {% if answers and answers is mapping %}
+                                    <ul>
+                                        {% for key, value in answers.items() %}
+                                            <li>{{ key }}. {{ value }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            
+                            {% elif q.Loại == 'group-radio' and q.get('Có các câu đúng/sai') %}
+                                <div style="margin-top: 10px; padding: 10px; background-color: #2C2F33; border-radius: 5px;">
+                                    {% for sub_q in questions %}
+                                        {% if sub_q.get('Parent_ID') == q.ID %}
+                                            <div style="margin-top: 8px; padding-left: 15px;">
+                                                <strong>{{ sub_q.Câu.split(': ', 1)[1] if ': ' in sub_q.Câu else sub_q.Câu }}</strong>
+                                                {% if sub_q.get('Đáp án') and sub_q['Đáp án'] is mapping %}
+                                                    <ul style="margin-top: 5px;">
+                                                        {% for key, value in sub_q['Đáp án'].items() %}
+                                                            <li>{{ key }}. {{ value }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif q.Loại == 'drag_drop' and q.get('Có các câu ghép') %}
+                                <div style="margin-top: 10px; padding: 10px; background-color: #2C2F33; border-radius: 5px;">
+                                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                                        <tr>
+                                            {% for choice in q['Các lựa chọn'] %}
+                                                <td style="border: 1px solid #555; padding: 8px; text-align: center;">{{ choice }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    </table>
+                                    
+                                    {% for sub_q in questions %}
+                                        {% if sub_q.get('Parent_ID') == q.ID %}
+                                            <div style="margin-top: 8px; padding-left: 15px;">
+                                                - {{ sub_q.Câu.split(': ', 1)[1] if ': ' in sub_q.Câu else sub_q.Câu }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif q.Loại == 'group-input' and q.get('Có các câu điền') %}
+                                <div style="margin-top: 10px; padding: 10px; background-color: #2C2F33; border-radius: 5px;">
+                                    {% for sub_q in questions %}
+                                        {% if sub_q.get('Parent_ID') == q.ID %}
+                                            <div style="margin-top: 8px; padding-left: 15px; color: #3ba55d;">
+                                                - {{ sub_q['Đáp án'] if sub_q.get('Đáp án') else sub_q.Câu.split(': ', 1)[1] }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
 
@@ -317,38 +372,127 @@ async function downloadDocx() {
     const docxPkg = window.docx && window.docx.Document ? window.docx : (window.docx && window.docx.default ? window.docx.default : null);
     if (!docxPkg) throw new Error('docx không khả dụng sau khi thử tải. Kiểm tra console network.');
 
-    const { Document, Packer, Paragraph, TextRun } = docxPkg;
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } = docxPkg;
 
     const qRoot = document.getElementById('question-list');
     if (!qRoot) { alert('Không có nội dung để xuất!'); return; }
 
-    // Lấy text từng dòng, loại bỏ dòng rỗng
-    const lines = qRoot.innerText.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-
-    // Tạo paragraph: in đậm nếu là "ID:" hoặc bắt đầu bằng "Câu"
-    const paras = lines.map(line => {
-      const bold = /^ID:|^Câu\s*\d+/i.test(line) || /^Câu\b/i.test(line);
-      return new Paragraph({
-        children: [ new TextRun({ text: line, bold }) ]
-      });
+    const children = [];
+    
+    // Lấy tất cả các câu hỏi
+    const questionDivs = qRoot.querySelectorAll('div[style*="border-left"]');
+    
+    questionDivs.forEach((qDiv, index) => {
+      // Lấy ID
+      const idText = qDiv.querySelector('strong')?.nextSibling?.textContent?.trim() || '';
+      if (idText) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: `ID: ${idText}`, bold: true })],
+          spacing: { before: 200, after: 100 }
+        }));
+      }
+      
+      // Lấy câu hỏi chính
+      const questionText = Array.from(qDiv.querySelectorAll('strong')).find(s => s.textContent.includes('Câu'))?.textContent || '';
+      if (questionText) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: questionText, bold: true })],
+          spacing: { after: 100 }
+        }));
+      }
+      
+      // Kiểm tra có bảng không (câu kéo thả)
+      const table = qDiv.querySelector('table');
+      if (table) {
+        const cells = Array.from(table.querySelectorAll('td')).map(td => td.textContent.trim());
+        
+        if (cells.length > 0) {
+          // Tạo bảng trong Word
+          const tableRows = [
+            new TableRow({
+              children: cells.map(cellText => 
+                new TableCell({
+                  children: [new Paragraph({
+                    children: [new TextRun({ text: cellText })],
+                    alignment: 'center'
+                  })],
+                  width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: "000000" }
+                  }
+                })
+              )
+            })
+          ];
+          
+          children.push(new Table({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE }
+          }));
+          
+          children.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+        }
+        
+        // Lấy các câu con (câu ghép)
+        const subQuestions = qDiv.querySelectorAll('div[style*="padding-left: 15px"]');
+        subQuestions.forEach(subQ => {
+          const subText = subQ.textContent.trim();
+          if (subText) {
+            children.push(new Paragraph({
+              children: [new TextRun({ text: subText })],
+              spacing: { after: 50 }
+            }));
+          }
+        });
+      } else {
+        // Các loại câu hỏi khác (trắc nghiệm, điền từ)
+        const ul = qDiv.querySelector('ul');
+        if (ul) {
+          const items = Array.from(ul.querySelectorAll('li'));
+          items.forEach(li => {
+            children.push(new Paragraph({
+              children: [new TextRun({ text: li.textContent.trim() })],
+              spacing: { after: 50 }
+            }));
+          });
+        }
+        
+        // Câu điền từ (có background màu xanh)
+        const fillInDivs = qDiv.querySelectorAll('div[style*="background-color: #2C2F33"]');
+        fillInDivs.forEach(fillDiv => {
+          const subItems = fillDiv.querySelectorAll('div[style*="color: #3ba55d"]');
+          subItems.forEach(item => {
+            const text = item.textContent.trim();
+            if (text) {
+              children.push(new Paragraph({
+                children: [new TextRun({ text: text, color: "2d7d46" })],
+                spacing: { after: 50 }
+              }));
+            }
+          });
+        });
+      }
+      
+      // Thêm khoảng cách giữa các câu hỏi
+      children.push(new Paragraph({ text: '', spacing: { after: 200 } }));
     });
 
-    // paras.push(new Paragraph(''));
-
-const doc = new Document({
-    styles: {
+    const doc = new Document({
+      styles: {
         default: {
-            document: {
-                run: {
-                    font: "Aptos (Body)",
-                    size: 24 // 24 half-points = 12pt
-                }
+          document: {
+            run: {
+              font: "Aptos (Body)",
+              size: 24 // 24 half-points = 12pt
             }
+          }
         }
-    },
-    sections: [{ properties: {}, children: paras }]
-});
-
+      },
+      sections: [{ properties: {}, children: children }]
+    });
 
     const blob = await Packer.toBlob(doc);
 
