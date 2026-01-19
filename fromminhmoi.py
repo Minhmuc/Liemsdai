@@ -23,12 +23,12 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
 app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 
 # Admin passwords - THAY ĐỔI MẬT KHẨU NÀY
-ADMIN_PASSWORDS = ['c^ng', 'hoanbucon', 'minhmuc']
+ADMIN_PASSWORDS = ['l4tte', 'hoanbucon', 'minhmuc']
 
 # Password to display name mapping
 PASSWORD_NAMES = {
     'hoanbucon': 'Hoàn Bự Con',
-    'c^ng': 'Ming King',
+    'l4tte': 'Ming King',
     'minhmuc': 'Strongest LiemDaiHiep'
 }
 
