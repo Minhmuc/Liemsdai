@@ -7,6 +7,10 @@ import io
 import zipfile
 from functools import wraps
 from google_drive_manager import GoogleDriveManager
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 UPLOAD_FOLDER = 'uploaded'
 DATA_FOLDER = 'Data'
@@ -20,17 +24,28 @@ if not os.path.exists(METADATA_FOLDER):
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
-app.secret_key = 'liems-secret-key-2025'  # Change this to a random string
 
-# Admin passwords - THAY ĐỔI MẬT KHẨU NÀY
-ADMIN_PASSWORDS = ['l4tte', 'hoanbucon', 'minhmuc']
+# Load secret key from environment variable (IMPORTANT: Set this in .env file)
+app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-in-production')
+if app.secret_key == 'default-dev-key-change-in-production':
+    print("⚠️ WARNING: Using default secret key. Set SECRET_KEY in .env file!")
 
-# Password to display name mapping
-PASSWORD_NAMES = {
-    'hoanbucon': 'Hoàn Bự Con',
-    'l4tte': 'Ming King',
-    'minhmuc': 'Strongest LiemDaiHiep'
-}
+# Load admin passwords from environment variable
+ADMIN_PASSWORDS = os.environ.get('ADMIN_PASSWORDS', '').split(',')
+if not ADMIN_PASSWORDS or ADMIN_PASSWORDS == ['']:
+    print("⚠️ WARNING: No admin passwords set. Set ADMIN_PASSWORDS in .env file!")
+    ADMIN_PASSWORDS = []  # Empty list if not set
+
+# Load password to display name mapping from environment variable
+PASSWORD_NAMES = {}
+password_names_str = os.environ.get('PASSWORD_NAMES', '')
+if password_names_str:
+    for mapping in password_names_str.split(','):
+        if ':' in mapping:
+            password, name = mapping.split(':', 1)
+            PASSWORD_NAMES[password.strip()] = name.strip()
+else:
+    print("⚠️ WARNING: No password names set. Set PASSWORD_NAMES in .env file!")
 
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
