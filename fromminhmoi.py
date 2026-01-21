@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file, session, redirect, url_for, Response
 from datetime import datetime
 import io
 import zipfile
@@ -599,6 +599,56 @@ def admin_delete(filename):
                 return jsonify({'error': 'File not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# SEO Routes
+@app.route('/robots.txt')
+def robots():
+    """Serve robots.txt file"""
+    return send_from_directory('.', 'robots.txt')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """Generate dynamic sitemap.xml"""
+    pages = []
+    base_url = 'https://lms.liemsdai.is-best.net'
+    
+    # Main pages
+    pages.append({
+        'loc': f'{base_url}/',
+        'lastmod': datetime.now().strftime('%Y-%m-%d'),
+        'changefreq': 'daily',
+        'priority': '1.0'
+    })
+    
+    pages.append({
+        'loc': f'{base_url}/casual',
+        'lastmod': datetime.now().strftime('%Y-%m-%d'),
+        'changefreq': 'weekly',
+        'priority': '0.8'
+    })
+    
+    pages.append({
+        'loc': f'{base_url}/dev',
+        'lastmod': datetime.now().strftime('%Y-%m-%d'),
+        'changefreq': 'weekly',
+        'priority': '0.8'
+    })
+    
+    # Generate XML
+    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    
+    for page in pages:
+        sitemap_xml += '  <url>\n'
+        sitemap_xml += f'    <loc>{page["loc"]}</loc>\n'
+        sitemap_xml += f'    <lastmod>{page["lastmod"]}</lastmod>\n'
+        sitemap_xml += f'    <changefreq>{page["changefreq"]}</changefreq>\n'
+        sitemap_xml += f'    <priority>{page["priority"]}</priority>\n'
+        sitemap_xml += '  </url>\n'
+    
+    sitemap_xml += '</urlset>'
+    
+    return Response(sitemap_xml, mimetype='text/xml')
 
 # Admin download multiple files as zip
 @app.route('/admin/download-multiple', methods=['POST'])

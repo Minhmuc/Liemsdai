@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin_login
+Disallow: /uploaded/
+Disallow: /Data/
+Sitemap: https://lms.liemsdai.is-best.net/sitemap.xml

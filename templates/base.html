@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block meta_description %}LMS Liemsdai - Hệ thống học tập và quản lý câu hỏi trắc nghiệm thông minh. Luyện tập và kiểm tra kiến thức hiệu quả.{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}lms, liemsdai, học tập, trắc nghiệm, câu hỏi, luyện tập, kiểm tra, giáo dục{% endblock %}">
+    <meta name="author" content="Liemsdai Team">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph Meta Tags for Social Media -->
+    <meta property="og:title" content="{% block og_title %}LMS Liemsdai - Hệ thống học tập thông minh{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Hệ thống học tập và quản lý câu hỏi trắc nghiệm thông minh{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="LMS Liemsdai">
+    <meta property="og:locale" content="vi_VN">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}LMS Liemsdai{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Hệ thống học tập thông minh{% endblock %}">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ request.url }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    
+    <title>{% block title %}LMS Liemsdai - Hệ thống học tập thông minh{% endblock %}</title>
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
