@@ -101,10 +101,29 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .header > div:first-child {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .header > div:last-child {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         h1 {
             margin: 0;
+            font-size: 1.8em;
+            white-space: nowrap;
         }
 
         .admin-name {
@@ -112,6 +131,53 @@
             font-weight: bold;
             margin-right: 15px;
             font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .super-admin-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.75em;
+            margin-left: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+
+        .mode-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .visibility-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.3em;
+            padding: 8px;
+            transition: transform 0.2s, opacity 0.2s;
+            margin-right: 5px;
+        }
+
+        .visibility-toggle:hover {
+            transform: scale(1.2);
+        }
+
+        .file-item.hidden-file {
+            opacity: 0.6;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .file-item.hidden-file .file-name::after {
+            content: ' 🔒';
+            color: #ff6b6b;
+            font-size: 0.8em;
+            margin-left: 8px;
         }
 
         .logout-btn {
@@ -395,22 +461,55 @@
         }
 
         .message {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px 30px;
+            border-radius: 10px;
             text-align: center;
+            z-index: 10000;
+            min-width: 300px;
+            max-width: 600px;
+            font-weight: 500;
+            font-size: 1em;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
 
         .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background-color: #28a745;
+            color: white;
+            border: 2px solid #1e7e34;
         }
 
         .message.error {
+            background-color: #dc3545;
+            color: white;
+            border: 2px solid #bd2130;
+        }
+
+        body.light-mode .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        body.light-mode .message.error {
             background-color: #f8d7da;
             color: #721c24;
-            border: 1px solid #f5c6cb;
+            border: 2px solid #f5c6cb;
         }
 
         .selected-files {
@@ -552,7 +651,12 @@
                         </svg>
                     </span>
                 </label>
-                <span class="admin-name">Welcome, {{ admin_name }}</span>
+                <span class="admin-name">
+                    Welcome, {{ admin_name }}
+                    {% if is_super_admin %}
+                        <span class="super-admin-badge">⭐ SUPER ADMIN</span>
+                    {% endif %}
+                </span>
                 <a href="/admin/logout" class="logout-btn">Đăng xuất</a>
             </div>
         </div>
@@ -582,7 +686,20 @@
         </div>
     </div>
 
+    <!-- Pass data from Flask to JavaScript -->
+    <script type="application/json" id="adminConfig">
+        {
+            "isSuperAdmin": {{ 'true' if is_super_admin else 'false' }},
+            "hiddenFiles": {{ hidden_files|tojson if is_super_admin else '[]' }}
+        }
+    </script>
+
     <script>
+        // Load config from JSON
+        const adminConfig = JSON.parse(document.getElementById('adminConfig').textContent);
+        const isSuperAdmin = adminConfig.isSuperAdmin;
+        const hiddenFilesFromServer = adminConfig.hiddenFiles;
+
         const uploadSection = document.getElementById('uploadSection');
         const fileInput = document.getElementById('fileInput');
         const selectedFilesDiv = document.getElementById('selectedFiles');
@@ -705,10 +822,14 @@
                 }
 
                 let html = '';
+                
                 files.forEach(file => {
+                    const isHidden = hiddenFilesFromServer.includes(file.name);
                     const uploader = file.uploader || 'Unknown';
+                    const hiddenClass = isHidden ? 'hidden-file' : '';
+                    
                     html += `
-                        <div class="file-item" data-filename="${escapeHtml(file.name)}" onclick="toggleFileByClick(event, '${escapeHtml(file.name)}')">
+                        <div class="file-item ${hiddenClass}" data-filename="${escapeHtml(file.name)}" onclick="toggleFileByClick(event, '${escapeHtml(file.name)}')">
                             <input type="checkbox" class="file-checkbox" onchange="toggleFileSelection(this)" data-filename="${escapeHtml(file.name)}">
                             <div class="file-info">
                                 <div class="file-name">${file.name}</div>
@@ -717,6 +838,11 @@
                                 </div>
                             </div>
                             <div class="file-actions" onclick="event.stopPropagation()">
+                                ${isSuperAdmin ? `
+                                <button class="visibility-toggle" onclick="toggleVisibility('${escapeHtml(file.name)}')" title="${isHidden ? 'Bỏ ẩn file' : 'Ẩn file'}">
+                                    ${isHidden ? '👁️‍🗨️' : '👁️'}
+                                </button>
+                                ` : ''}
                                 ${file.name.endsWith('.docx') ? `
                                 <button class="btn btn-success" onclick="previewDocx('${escapeHtml(file.name)}')" title="Preview">
                                     <svg viewBox="0 0 576 512" xmlns="http://www.w3.org/2000/svg">
@@ -907,7 +1033,7 @@
         }
 
         // Custom confirmation dialog
-        function showConfirmDialog(message) {
+        function showConfirmDialog(message, confirmText = 'Xác nhận', cancelText = 'Hủy', confirmColor = '#e74c3c') {
             return new Promise((resolve) => {
                 // Create overlay
                 const overlay = document.createElement('div');
@@ -917,7 +1043,8 @@
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.6);
+                    background: rgba(0, 0, 0, 0.7);
+                    backdrop-filter: blur(3px);
                     z-index: 10000;
                     display: flex;
                     align-items: center;
@@ -927,15 +1054,20 @@
 
                 // Create dialog box
                 const dialog = document.createElement('div');
+                const bgColor = document.body.classList.contains('light-mode') ? '#ffffff' : '#23272A';
+                const textColor = document.body.classList.contains('light-mode') ? '#222222' : '#e0e0e0';
+                const borderColor = document.body.classList.contains('light-mode') ? '#4a90e2' : '#7289DA';
+                
                 dialog.style.cssText = `
-                    background: var(--container-bg-color);
-                    color: var(--text-color);
+                    background: ${bgColor};
+                    color: ${textColor};
                     padding: 30px;
-                    border-radius: 12px;
-                    border: 2px solid var(--button-bg-color);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                    border-radius: 15px;
+                    border: 2px solid ${borderColor};
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
                     font-family: 'Minecraft', Arial, sans-serif;
-                    max-width: 500px;
+                    max-width: 450px;
+                    min-width: 350px;
                     text-align: center;
                     animation: scaleIn 0.2s ease-out;
                 `;
@@ -944,8 +1076,9 @@
                 const messageEl = document.createElement('p');
                 messageEl.style.cssText = `
                     margin: 0 0 25px 0;
-                    font-size: 1.1em;
-                    line-height: 1.5;
+                    font-size: 1.05em;
+                    line-height: 1.6;
+                    white-space: pre-line;
                 `;
                 messageEl.textContent = message;
 
@@ -959,20 +1092,27 @@
 
                 // Confirm button
                 const confirmBtn = document.createElement('button');
-                confirmBtn.textContent = 'Xóa';
+                confirmBtn.textContent = confirmText;
                 confirmBtn.style.cssText = `
-                    padding: 10px 30px;
-                    background-color: #e74c3c;
+                    padding: 12px 30px;
+                    background-color: ${confirmColor};
                     color: white;
                     border: none;
                     border-radius: 8px;
                     font-family: 'Minecraft', Arial, sans-serif;
                     font-size: 1em;
                     cursor: pointer;
-                    transition: background-color 0.3s ease;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                 `;
-                confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#c0392b';
-                confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#e74c3c';
+                confirmBtn.onmouseover = () => {
+                    confirmBtn.style.transform = 'translateY(-2px)';
+                    confirmBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+                };
+                confirmBtn.onmouseout = () => {
+                    confirmBtn.style.transform = 'translateY(0)';
+                    confirmBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+                };
                 confirmBtn.onclick = () => {
                     overlay.style.animation = 'fadeOut 0.2s ease-out';
                     setTimeout(() => {
@@ -983,20 +1123,28 @@
 
                 // Cancel button
                 const cancelBtn = document.createElement('button');
-                cancelBtn.textContent = 'Hủy';
+                cancelBtn.textContent = cancelText;
+                const cancelColor = document.body.classList.contains('light-mode') ? '#6c757d' : '#95a5a6';
                 cancelBtn.style.cssText = `
-                    padding: 10px 30px;
-                    background-color: var(--button-bg-color);
+                    padding: 12px 30px;
+                    background-color: ${cancelColor};
                     color: white;
                     border: none;
                     border-radius: 8px;
                     font-family: 'Minecraft', Arial, sans-serif;
                     font-size: 1em;
                     cursor: pointer;
-                    transition: background-color 0.3s ease;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                 `;
-                cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = 'var(--button-hover-bg-color)';
-                cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = 'var(--button-bg-color)';
+                cancelBtn.onmouseover = () => {
+                    cancelBtn.style.transform = 'translateY(-2px)';
+                    cancelBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+                };
+                cancelBtn.onmouseout = () => {
+                    cancelBtn.style.transform = 'translateY(0)';
+                    cancelBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+                };
                 cancelBtn.onclick = () => {
                     overlay.style.animation = 'fadeOut 0.2s ease-out';
                     setTimeout(() => {
@@ -1213,6 +1361,76 @@
                 e.target.remove();
             }
         });
+
+        // Toggle visibility function (super admin only)
+        async function toggleVisibility(filename) {
+            const confirmed = await showConfirmDialog(
+                `Bạn có chắc muốn ẩn/hiện file "${filename}"?\n\nFile ẩn sẽ không hiển thị cho admin khác và ở Casual mode.`,
+                'Xác nhận',
+                'Hủy',
+                '#f39c12' // Màu cam cho action ẩn/hiện
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/toggle_visibility', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const isHidden = data.action === 'hidden';
+                    
+                    showMessage(
+                        `✅ File "${filename}" đã ${isHidden ? 'ẩn' : 'bỏ ẩn'} thành công!`,
+                        'success'
+                    );
+                    
+                    // Cập nhật UI ngay lập tức mà không reload
+                    const fileItem = document.querySelector(`.file-item[data-filename="${escapeHtml(filename)}"]`);
+                    if (fileItem) {
+                        // Toggle hidden-file class
+                        if (isHidden) {
+                            fileItem.classList.add('hidden-file');
+                        } else {
+                            fileItem.classList.remove('hidden-file');
+                        }
+                        
+                        // Cập nhật icon trong nút toggle
+                        const toggleBtn = fileItem.querySelector('.visibility-toggle');
+                        if (toggleBtn) {
+                            toggleBtn.textContent = isHidden ? '👁️‍🗨️' : '👁️';
+                            toggleBtn.title = isHidden ? 'Bỏ ẩn file' : 'Ẩn file';
+                        }
+                    }
+                    
+                    // Cập nhật array hiddenFiles
+                    if (isHidden) {
+                        if (!hiddenFilesFromServer.includes(filename)) {
+                            hiddenFilesFromServer.push(filename);
+                        }
+                    } else {
+                        const index = hiddenFilesFromServer.indexOf(filename);
+                        if (index > -1) {
+                            hiddenFilesFromServer.splice(index, 1);
+                        }
+                    }
+                } else {
+                    showMessage(`❌ Lỗi: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('❌ Có lỗi xảy ra khi thay đổi trạng thái file', 'error');
+            }
+        }
 
         window.onload = loadFiles;
     </script>

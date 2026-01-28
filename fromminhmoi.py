@@ -15,6 +15,8 @@ load_dotenv()
 UPLOAD_FOLDER = 'uploaded'
 DATA_FOLDER = 'Data'
 METADATA_FOLDER = 'metadata'
+HIDDEN_FILES_JSON = 'hidden_files.json'
+
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 if not os.path.exists(DATA_FOLDER):
@@ -47,6 +49,9 @@ if password_names_str:
 else:
     print("⚠️ WARNING: No password names set. Set PASSWORD_NAMES in .env file!")
 
+# Super Admin configuration (loaded from environment, not exposed in code)
+_SUPER_ADMIN_KEY = os.environ.get('SUPER_ADMIN_KEY', '')
+
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
 DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)
@@ -76,6 +81,46 @@ def get_file_metadata(filename):
         except Exception as e:
             print(f"Error reading metadata: {e}")
     return None
+
+# Hidden files management functions
+def load_hidden_files():
+    """Load danh sách file ẩn từ JSON"""
+    if os.path.exists(HIDDEN_FILES_JSON):
+        try:
+            with open(HIDDEN_FILES_JSON, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_hidden_files(hidden_list):
+    """Lưu danh sách file ẩn vào JSON"""
+    with open(HIDDEN_FILES_JSON, 'w', encoding='utf-8') as f:
+        json.dump(hidden_list, f, ensure_ascii=False, indent=2)
+
+def is_super_admin():
+    """Kiểm tra xem user hiện tại có phải super admin không"""
+    if not _SUPER_ADMIN_KEY:
+        return False
+    admin_user = session.get('admin_user', '')
+    return admin_user.lower() == _SUPER_ADMIN_KEY.lower()
+
+def get_visible_files():
+    """Lấy danh sách file mà user hiện tại được phép thấy"""
+    if drive_manager:
+        all_files = [f['name'] for f in drive_manager.list_files()]
+    else:
+        all_files = [f for f in os.listdir(DATA_FOLDER) if os.path.isfile(os.path.join(DATA_FOLDER, f))]
+    
+    # Nếu là super admin (minhmuc), thấy tất cả file
+    if is_super_admin():
+        return all_files
+    
+    # Nếu không phải super admin, loại bỏ các file bị ẩn
+    hidden_files = load_hidden_files()
+    visible_files = [f for f in all_files if f not in hidden_files]
+    
+    return visible_files
 
 print(f"🔧 USE_GOOGLE_DRIVE: {USE_GOOGLE_DRIVE}")
 print(f"🔧 DRIVE_FOLDER_ID: {DRIVE_FOLDER_ID}")
@@ -494,7 +539,17 @@ def admin_logout():
 def admin():
     admin_user = session.get('admin_user', '')
     display_name = PASSWORD_NAMES.get(admin_user, 'Admin')
-    return render_template('admin.html', admin_name=display_name)
+    
+    # Get visible files based on user permission
+    visible_files = get_visible_files()
+    hidden_files = load_hidden_files() if is_super_admin() else []
+    
+    return render_template(
+        'admin.html', 
+        admin_name=display_name,
+        is_super_admin=is_super_admin(),
+        hidden_files=hidden_files
+    )
 
 # Admin upload file
 @app.route('/admin/upload', methods=['POST'])
@@ -542,22 +597,33 @@ def admin_upload():
 @admin_required
 def admin_files():
     try:
+        visible_files = get_visible_files()
+        hidden_files = load_hidden_files() if is_super_admin() else []
+        
         files = []
         
         if drive_manager:
             # List from Google Drive
             drive_files = drive_manager.list_files()
             for file in drive_files:
-                properties = file.get('properties', {})
+                # Skip hidden files if not super admin
+                if file['name'] not in visible_files and not is_super_admin():
+                    continue
+                    
                 files.append({
                     'name': file['name'],
-                    'size': int(file.get('size', 0)),
-                    'modified': file.get('modifiedTime', 'Unknown'),
-                    'uploader': properties.get('uploader', 'Unknown')
+                    'size': file.get('size', 0),
+                    'modified': file.get('modifiedTime', ''),
+                    'uploader': file.get('uploader', 'Unknown'),
+                    'hidden': file['name'] in hidden_files
                 })
         else:
             # List from local storage
             for filename in os.listdir(DATA_FOLDER):
+                # Skip hidden files if not super admin
+                if filename not in visible_files and not is_super_admin():
+                    continue
+                    
                 filepath = os.path.join(DATA_FOLDER, filename)
                 if os.path.isfile(filepath):
                     size = os.path.getsize(filepath)
@@ -567,7 +633,8 @@ def admin_files():
                         'name': filename,
                         'size': size,
                         'modified': modified,
-                        'uploader': metadata['uploader'] if metadata else 'Unknown'
+                        'uploader': metadata['uploader'] if metadata else 'Unknown',
+                        'hidden': filename in hidden_files
                     })
         
         return jsonify(files)
@@ -599,6 +666,51 @@ def admin_delete(filename):
                 return jsonify({'error': 'File not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Toggle file visibility (super admin only)
+@app.route('/admin/toggle_visibility', methods=['POST'])
+@admin_required
+def toggle_file_visibility():
+    """Toggle ẩn/hiện file - chỉ super admin (minhmuc) mới làm được"""
+    if not is_super_admin():
+        return jsonify({'success': False, 'error': 'Chỉ minhmuc mới có quyền ẩn/hiện file'}), 403
+    
+    data = request.get_json()
+    filename = data.get('filename')
+    
+    if not filename:
+        return jsonify({'success': False, 'error': 'Missing filename'}), 400
+    
+    hidden_files = load_hidden_files()
+    
+    if filename in hidden_files:
+        # Bỏ ẩn file
+        hidden_files.remove(filename)
+        action = 'unhidden'
+    else:
+        # Ẩn file
+        hidden_files.append(filename)
+        action = 'hidden'
+    
+    save_hidden_files(hidden_files)
+    
+    return jsonify({
+        'success': True,
+        'action': action,
+        'filename': filename,
+        'hidden_files': hidden_files
+    })
+
+# Get hidden files list (super admin only)
+@app.route('/admin/hidden_files', methods=['GET'])
+@admin_required
+def get_hidden_files_route():
+    """Lấy danh sách file ẩn - chỉ super admin thấy được"""
+    if not is_super_admin():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    hidden_files = load_hidden_files()
+    return jsonify({'success': True, 'hidden_files': hidden_files})
 
 # SEO Routes
 @app.route('/robots.txt')
