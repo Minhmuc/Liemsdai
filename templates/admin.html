@@ -147,6 +147,60 @@
             white-space: nowrap;
         }
 
+        .admin-info-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 15px;
+            background-color: rgba(114, 137, 218, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(114, 137, 218, 0.2);
+        }
+
+        .admin-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--button-bg-color);
+        }
+
+        .admin-avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            border: 2px solid var(--button-bg-color);
+        }
+
+        .admin-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .admin-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .admin-email {
+            font-size: 0.85em;
+            color: var(--file-meta-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .mode-toggle-wrapper {
             display: flex;
             align-items: center;
@@ -651,12 +705,22 @@
                         </svg>
                     </span>
                 </label>
-                <span class="admin-name">
-                    Welcome, {{ admin_name }}
-                    {% if is_super_admin %}
-                        <span class="super-admin-badge">⭐ SUPER ADMIN</span>
+                <div class="admin-info-box">
+                    {% if admin_picture %}
+                        <img src="{{ admin_picture }}" alt="{{ admin_name }}" class="admin-avatar">
+                    {% else %}
+                        <div class="admin-avatar-placeholder">{{ admin_name[0] }}</div>
                     {% endif %}
-                </span>
+                    <div class="admin-details">
+                        <div class="admin-name-row">
+                            <span class="admin-name">{{ admin_name }}</span>
+                            {% if is_super_admin %}
+                                <span class="super-admin-badge">⭐ SUPER</span>
+                            {% endif %}
+                        </div>
+                        <small class="admin-email">{{ admin_email }}</small>
+                    </div>
+                </div>
                 <a href="/admin/logout" class="logout-btn">Đăng xuất</a>
             </div>
         </div>

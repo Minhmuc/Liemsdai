@@ -8,6 +8,7 @@ import zipfile
 from functools import wraps
 from google_drive_manager import GoogleDriveManager
 from dotenv import load_dotenv
+from authlib.integrations.flask_client import OAuth
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,25 +33,24 @@ app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-in-product
 if app.secret_key == 'default-dev-key-change-in-production':
     print("⚠️ WARNING: Using default secret key. Set SECRET_KEY in .env file!")
 
-# Load admin passwords from environment variable
-ADMIN_PASSWORDS = os.environ.get('ADMIN_PASSWORDS', '').split(',')
-if not ADMIN_PASSWORDS or ADMIN_PASSWORDS == ['']:
-    print("⚠️ WARNING: No admin passwords set. Set ADMIN_PASSWORDS in .env file!")
-    ADMIN_PASSWORDS = []  # Empty list if not set
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+ADMIN_EMAILS = os.environ.get('ADMIN_EMAILS', '').split(',')
+ADMIN_EMAILS = [email.strip() for email in ADMIN_EMAILS if email.strip()]
+SUPER_ADMIN_EMAIL = os.environ.get('SUPER_ADMIN_EMAIL', '').strip()
 
-# Load password to display name mapping from environment variable
-PASSWORD_NAMES = {}
-password_names_str = os.environ.get('PASSWORD_NAMES', '')
-if password_names_str:
-    for mapping in password_names_str.split(','):
-        if ':' in mapping:
-            password, name = mapping.split(':', 1)
-            PASSWORD_NAMES[password.strip()] = name.strip()
-else:
-    print("⚠️ WARNING: No password names set. Set PASSWORD_NAMES in .env file!")
-
-# Super Admin configuration (loaded from environment, not exposed in code)
-_SUPER_ADMIN_KEY = os.environ.get('SUPER_ADMIN_KEY', '')
+# Initialize OAuth
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
 
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
@@ -100,10 +100,15 @@ def save_hidden_files(hidden_list):
 
 def is_super_admin():
     """Kiểm tra xem user hiện tại có phải super admin không"""
-    if not _SUPER_ADMIN_KEY:
+    if not SUPER_ADMIN_EMAIL:
         return False
-    admin_user = session.get('admin_user', '')
-    return admin_user.lower() == _SUPER_ADMIN_KEY.lower()
+    admin_email = session.get('admin_email', '')
+    return admin_email.lower() == SUPER_ADMIN_EMAIL.lower()
+
+def is_admin():
+    """Kiểm tra xem user có phải admin không"""
+    admin_email = session.get('admin_email', '')
+    return admin_email.lower() in [email.lower() for email in ADMIN_EMAILS]
 
 def get_visible_files():
     """Lấy danh sách file mà user hiện tại được phép thấy"""
@@ -147,6 +152,9 @@ if USE_GOOGLE_DRIVE:
         drive_manager = None
 else:
     print("ℹ️ Google Drive disabled - using local storage")
+
+print(f"🔧 ADMIN_EMAILS: {', '.join(ADMIN_EMAILS)}")
+print(f"🔧 SUPER_ADMIN_EMAIL: {SUPER_ADMIN_EMAIL}")
 
 def parse_questions(files=None, json_codes=None, id_filter=None):
     result = {}
@@ -503,42 +511,77 @@ def dev():
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
+        if not session.get('admin_logged_in') or not is_admin():
+            # Redirect to OAuth login
             return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     return decorated_function
 
-# Admin login page
-@app.route('/admin/login', methods=['GET', 'POST'])
+# Admin login page - Show login page with Google button
+@app.route('/admin/login')
 def admin_login():
-    if request.method == 'POST':
-        password = request.form.get('password')
-        # Normalize password to lowercase for case-insensitive comparison
-        if password and password.lower() in [p.lower() for p in ADMIN_PASSWORDS]:
-            session['admin_logged_in'] = True
-            # Store the original password (lowercase) to identify user
-            for admin_pwd in ADMIN_PASSWORDS:
-                if password.lower() == admin_pwd.lower():
-                    session['admin_user'] = admin_pwd
-                    break
-            return redirect(url_for('admin'))
-        else:
-            return render_template('admin_login.html', error='Từ Chối Truy Cập!')
-    return render_template('admin_login.html')
+    """Show login page with Google OAuth button"""
+    error = request.args.get('error')
+    error_message = None
+    if error == 'access_denied':
+        error_message = '🚫 Từ chối truy cập: Bạn là ai?'
+    elif error == 'oauth_failed':
+        error_message = '❌ Lỗi xác thực: Không thể kết nối với Google'
+    return render_template('admin_login.html', error=error_message)
+
+# Admin OAuth redirect
+@app.route('/admin/oauth/login')
+def admin_oauth_login():
+    """Redirect to Google OAuth login"""
+    # Dynamic redirect URI based on request
+    redirect_uri = url_for('admin_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+# Admin OAuth callback
+@app.route('/admin/callback')
+def admin_callback():
+    """Handle Google OAuth callback"""
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        
+        if not user_info:
+            return render_template('admin_login_error.html', 
+                                 error='Không thể lấy thông tin người dùng từ Google')
+        
+        email = user_info.get('email')
+        name = user_info.get('name')
+        picture = user_info.get('picture')
+        
+        # Check if user is authorized admin
+        if email.lower() not in [e.lower() for e in ADMIN_EMAILS]:
+            return redirect(url_for('admin_login', error='access_denied'))
+        
+        # Set session
+        session['admin_logged_in'] = True
+        session['admin_email'] = email
+        session['admin_name'] = name
+        session['admin_picture'] = picture
+        
+        return redirect(url_for('admin'))
+        
+    except Exception as e:
+        print(f"OAuth callback error: {e}")
+        return redirect(url_for('admin_login', error='oauth_failed'))
 
 # Admin logout
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin_logged_in', None)
-    session.pop('admin_user', None)
+    session.clear()
     return redirect(url_for('admin_login'))
 
 # Admin dashboard
 @app.route('/admin')
 @admin_required
 def admin():
-    admin_user = session.get('admin_user', '')
-    display_name = PASSWORD_NAMES.get(admin_user, 'Admin')
+    admin_email = session.get('admin_email', '')
+    admin_name = session.get('admin_name', 'Admin')
+    admin_picture = session.get('admin_picture', '')
     
     # Get visible files based on user permission
     visible_files = get_visible_files()
@@ -546,7 +589,9 @@ def admin():
     
     return render_template(
         'admin.html', 
-        admin_name=display_name,
+        admin_name=admin_name,
+        admin_email=admin_email,
+        admin_picture=admin_picture,
         is_super_admin=is_super_admin(),
         hidden_files=hidden_files
     )
@@ -563,8 +608,8 @@ def admin_upload():
     errors = []
     
     # Get uploader info
-    admin_user = session.get('admin_user', '')
-    uploader_name = PASSWORD_NAMES.get(admin_user, 'Admin')
+    admin_name = session.get('admin_name', 'Admin')
+    uploader_name = admin_name
     
     for file in files:
         if file and file.filename:
