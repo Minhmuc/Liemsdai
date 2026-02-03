@@ -2,6 +2,7 @@ import os
 import json
 import re
 from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file, session, redirect, url_for, Response
+from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime
 import io
 import zipfile
@@ -27,6 +28,9 @@ if not os.path.exists(METADATA_FOLDER):
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
+
+# ProxyFix: Trust X-Forwarded-* headers from Render proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Load secret key from environment variable (IMPORTANT: Set this in .env file)
 app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-in-production')
@@ -654,12 +658,16 @@ def admin_files():
                 # Skip hidden files if not super admin
                 if file['name'] not in visible_files and not is_super_admin():
                     continue
+                
+                # Get uploader from properties
+                properties = file.get('properties', {})
+                uploader = properties.get('uploader', 'Unknown')
                     
                 files.append({
                     'name': file['name'],
                     'size': file.get('size', 0),
                     'modified': file.get('modifiedTime', ''),
-                    'uploader': file.get('uploader', 'Unknown'),
+                    'uploader': uploader,
                     'hidden': file['name'] in hidden_files
                 })
         else:
