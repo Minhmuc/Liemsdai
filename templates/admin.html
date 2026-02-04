@@ -1360,18 +1360,48 @@
                     justify-content: space-between;
                     align-items: center;
                     font-family: 'Minecraft', Arial, sans-serif;
+                    gap: 15px;
                 `;
                 header.innerHTML = `
-                    <span style="font-size: 1.1em;">${escapeHtml(filename)}</span>
-                    <button onclick="this.closest('.preview-modal').remove()" style="
-                        background: #e74c3c;
-                        color: white;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-family: 'Minecraft', Arial, sans-serif;
-                    ">✕ Đóng</button>
+                    <span style="font-size: 1.1em; flex: 1;">${escapeHtml(filename)}</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="searchInput" placeholder=" (demo)Tìm kiếm (Ctrl+F)" style="
+                            padding: 8px 12px;
+                            border: none;
+                            border-radius: 6px;
+                            font-size: 0.95em;
+                            width: 200px;
+                            outline: none;
+                        " />
+                        <button onclick="findInPreview('prev')" style="
+                            background: #3498db;
+                            color: white;
+                            border: none;
+                            padding: 8px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                        ">⬆</button>
+                        <button onclick="findInPreview('next')" style="
+                            background: #3498db;
+                            color: white;
+                            border: none;
+                            padding: 8px 12px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                        ">⬇</button>
+                        <span id="matchCounter" style="font-size: 0.9em; color: #ddd; min-width: 60px;"></span>
+                        <button onclick="this.closest('.preview-modal').remove()" style="
+                            background: #e74c3c;
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-family: 'Minecraft', Arial, sans-serif;
+                        ">✕ Đóng</button>
+                    </div>
                 `;
 
                 // Content area with loading
@@ -1411,11 +1441,172 @@
                 } else {
                     throw new Error('docx-preview library chưa load');
                 }
+
+                // Setup search functionality after content loaded
+                setupPreviewSearch(contentArea);
+                
             } catch (error) {
                 console.error('Preview error:', error);
                 alert('❌ Lỗi preview: ' + error.message);
                 const modals = document.querySelectorAll('.preview-modal');
                 modals.forEach(m => m.remove());
+            }
+        }
+
+        // Search functionality for preview
+        let currentMatches = [];
+        let currentMatchIndex = -1;
+
+        function setupPreviewSearch(contentArea) {
+            const searchInput = document.getElementById('searchInput');
+            const matchCounter = document.getElementById('matchCounter');
+            
+            // Store reference to content area
+            window.previewContentArea = contentArea;
+            
+            // Handle Ctrl+F
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'f' && document.querySelector('.preview-modal')) {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+            
+            // Search on input
+            searchInput.addEventListener('input', function() {
+                performSearch(this.value);
+            });
+            
+            // Enter key = next match
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    findInPreview(e.shiftKey ? 'prev' : 'next');
+                }
+            });
+        }
+
+        function performSearch(query) {
+            const contentArea = window.previewContentArea;
+            const matchCounter = document.getElementById('matchCounter');
+            
+            // Clear previous highlights
+            clearHighlights(contentArea);
+            currentMatches = [];
+            currentMatchIndex = -1;
+            
+            if (!query || query.length < 2) {
+                matchCounter.textContent = '';
+                return;
+            }
+            
+            // Find all text nodes and highlight matches
+            highlightText(contentArea, query);
+            
+            if (currentMatches.length > 0) {
+                currentMatchIndex = 0;
+                scrollToMatch(0);
+                matchCounter.textContent = `1/${currentMatches.length}`;
+            } else {
+                matchCounter.textContent = '0/0';
+            }
+        }
+
+        function highlightText(element, query) {
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            const nodes = [];
+            while (walker.nextNode()) {
+                if (walker.currentNode.textContent.trim()) {
+                    nodes.push(walker.currentNode);
+                }
+            }
+            
+            const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            
+            nodes.forEach(node => {
+                const text = node.textContent;
+                const matches = [...text.matchAll(regex)];
+                
+                if (matches.length > 0) {
+                    const fragment = document.createDocumentFragment();
+                    let lastIndex = 0;
+                    
+                    matches.forEach(match => {
+                        // Text before match
+                        if (match.index > lastIndex) {
+                            fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                        }
+                        
+                        // Highlighted match
+                        const mark = document.createElement('mark');
+                        mark.textContent = match[0];
+                        mark.style.cssText = 'background: #ffeb3b; padding: 2px 0; border-radius: 2px;';
+                        mark.className = 'search-highlight';
+                        fragment.appendChild(mark);
+                        currentMatches.push(mark);
+                        
+                        lastIndex = match.index + match[0].length;
+                    });
+                    
+                    // Text after last match
+                    if (lastIndex < text.length) {
+                        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+                    }
+                    
+                    node.parentNode.replaceChild(fragment, node);
+                }
+            });
+        }
+
+        function clearHighlights(element) {
+            const highlights = element.querySelectorAll('.search-highlight');
+            highlights.forEach(mark => {
+                const text = document.createTextNode(mark.textContent);
+                mark.parentNode.replaceChild(text, mark);
+            });
+            // Merge adjacent text nodes
+            element.normalize();
+        }
+
+        function findInPreview(direction) {
+            const matchCounter = document.getElementById('matchCounter');
+            
+            if (currentMatches.length === 0) return;
+            
+            // Remove current highlight
+            if (currentMatchIndex >= 0 && currentMatches[currentMatchIndex]) {
+                currentMatches[currentMatchIndex].style.background = '#ffeb3b';
+            }
+            
+            // Move to next/prev
+            if (direction === 'next') {
+                currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
+            } else {
+                currentMatchIndex = (currentMatchIndex - 1 + currentMatches.length) % currentMatches.length;
+            }
+            
+            scrollToMatch(currentMatchIndex);
+            matchCounter.textContent = `${currentMatchIndex + 1}/${currentMatches.length}`;
+        }
+
+        function scrollToMatch(index) {
+            if (currentMatches[index]) {
+                // Highlight current match
+                currentMatches.forEach((m, i) => {
+                    m.style.background = i === index ? '#ff9800' : '#ffeb3b';
+                });
+                
+                // Scroll to match
+                currentMatches[index].scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
             }
         }
 
