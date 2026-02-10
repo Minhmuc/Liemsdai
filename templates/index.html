@@ -167,6 +167,7 @@
             box-shadow: var(--button-hover-box-shadow);
         }
 
+        /* Disabled - replaced with baffle.js
         .mode-button:hover::before {
             animation: paths 5s step-end infinite, opacity 5s step-end infinite,
                 font 8s step-end infinite, movement 10s step-end infinite;
@@ -180,6 +181,7 @@
             left: -5px;
             top: 2px;
         }
+        */
 
         .external-link-box {
             margin-top: 20px;
@@ -258,6 +260,7 @@
             z-index: 0;
         }
 
+        /* Disabled - replaced with baffle.js
         .external-link:hover .text-container::before {
             animation: paths 5s step-end infinite, opacity 5s step-end infinite,
                 movement 10s step-end infinite;
@@ -271,6 +274,7 @@
             left: -2px;
             top: 1px;
         }
+        */
 
         .legendary-text {
             font-family: 'Minecraft', Arial, sans-serif;
@@ -304,6 +308,7 @@
             color: #1bc7fb;
         }
 
+        /* Disabled - replaced with baffle.js
         .external-link:hover .legendary-text::before {
             animation: paths 5s step-end infinite, opacity 5s step-end infinite,
                 font 8s step-end infinite, movement 10s step-end infinite;
@@ -313,11 +318,7 @@
             animation: paths 5s step-end infinite, opacity 5s step-end infinite,
                 font 7s step-end infinite, movement 8s step-end infinite;
         }
-
-        .external-link:hover .legendary-text::after {
-            animation: paths 5s step-end infinite, opacity 5s step-end infinite,
-                font 7s step-end infinite, movement 8s step-end infinite;
-        }
+        */
 
         @keyframes paths {
             0% {
@@ -702,29 +703,130 @@
             }
         });
 
-        // Text switcher synced with glitch animation timing
-        const legendaryText = document.querySelector('.legendary-text');
-        const externalLink = document.querySelector('.external-link');
+        // Baffle.js glitch effect for all 4 buttons - repeat every 1.5s on hover
+        const glitchElements = [
+            { selector: '.mode-button', isMultiple: true, isLegendary: false },
+            { selector: '.legendary-text', isMultiple: false, isLegendary: true }
+        ];
         
-        if (legendaryText && externalLink) {
-            const textOptions = ['Liemdaidary', 'Liemdai', 'Legendary'];
-            let textInterval;
+        const legendaryTexts = ['Liemdaidary', 'Liemdai', 'Legendary'];
+        let currentLegendaryIndex = 0;
+        
+        glitchElements.forEach(({ selector, isMultiple, isLegendary }) => {
+            const elements = isMultiple ? document.querySelectorAll(selector) : [document.querySelector(selector)];
             
-            externalLink.addEventListener('mouseenter', () => {
-                // Change text at intervals matching the step-end animation rhythm
-                textInterval = setInterval(() => {
-                    const randomText = textOptions[Math.floor(Math.random() * textOptions.length)];
-                    legendaryText.textContent = randomText;
-                    legendaryText.setAttribute('data-text', randomText);
-                }, 3000); // 3 seconds for smooth rhythmic text changes
+            elements.forEach(element => {
+                if (!element) return;
+                
+                // Save original text content
+                const originalText = element.textContent;
+                
+                let glitchInterval = null;
+                let iconResetTimeout = null;
+                let currentBaffleInstance = null;
+                const faviconIcon = document.querySelector('.favicon1-icon');
+                const originalIconSrc = '/static/favicon1.ico';
+                const trollIconSrc = '/static/favicon2.ico';
+                
+                const parentLink = isMultiple ? element : element.closest('.external-link');
+                
+                const triggerGlitch = () => {
+                    // Change Liemdaidary text before glitch
+                    if (isLegendary) {
+                        currentLegendaryIndex = (currentLegendaryIndex + 1) % legendaryTexts.length;
+                        element.textContent = legendaryTexts[currentLegendaryIndex];
+                        element.setAttribute('data-text', legendaryTexts[currentLegendaryIndex]);
+                    }
+                    
+                    // Glitch favicon icon next to Liemdaidary
+                    if (isLegendary && faviconIcon) {
+                        // Clear any pending reset
+                        if (iconResetTimeout) {
+                            clearTimeout(iconResetTimeout);
+                        }
+                        
+                        faviconIcon.src = trollIconSrc;
+                        iconResetTimeout = setTimeout(() => {
+                            faviconIcon.src = originalIconSrc;
+                            iconResetTimeout = null;
+                        }, 800);
+                    }
+                    
+                    // Stop previous baffle instance if exists
+                    if (currentBaffleInstance) {
+                        try {
+                            currentBaffleInstance.reveal(0);
+                        } catch(e) {}
+                        currentBaffleInstance = null;
+                    }
+                    
+                    // Baffle text glitch
+                    currentBaffleInstance = baffle(element, {
+                        characters: '█▓█ ▒░/▒░ █░▒▓/ █▒▒ ▓▒▓/█ ░█▒/ ▒▓░ █<░▒ ▓/░>░▒▓█',
+                        speed: 80
+                    });
+                    
+                    currentBaffleInstance.start();
+                    currentBaffleInstance.reveal(800);
+                };
+                
+                if (parentLink) {
+                    parentLink.addEventListener('mouseenter', () => {
+                        // Clear any existing interval first
+                        if (glitchInterval) {
+                            clearInterval(glitchInterval);
+                            glitchInterval = null;
+                        }
+                        
+                        // First glitch immediately
+                        triggerGlitch();
+                        
+                        // Then repeat every 1.5 seconds
+                        glitchInterval = setInterval(triggerGlitch, 1500);
+                    });
+                    
+                    parentLink.addEventListener('mouseleave', () => {
+                        // Clear interval
+                        if (glitchInterval) {
+                            clearInterval(glitchInterval);
+                            glitchInterval = null;
+                        }
+                        
+                        // Clear icon reset timeout
+                        if (iconResetTimeout) {
+                            clearTimeout(iconResetTimeout);
+                            iconResetTimeout = null;
+                        }
+                        
+                        // Stop baffle instance immediately
+                        if (currentBaffleInstance) {
+                            try {
+                                currentBaffleInstance.reveal(0);
+                            } catch(e) {}
+                            currentBaffleInstance = null;
+                        }
+                        
+                        // Reset favicon icon immediately
+                        if (isLegendary && faviconIcon) {
+                            faviconIcon.src = originalIconSrc;
+                        }
+                        
+                        // Reset text content immediately
+                        if (isLegendary) {
+                            element.textContent = 'Liemdaidary';
+                            element.setAttribute('data-text', 'Liemdaidary');
+                            currentLegendaryIndex = 0;
+                        } else {
+                            // Restore original text for mode buttons
+                            element.textContent = originalText;
+                        }
+                    });
+                }
             });
-            
-            externalLink.addEventListener('mouseleave', () => {
-                clearInterval(textInterval);
-                legendaryText.textContent = 'Liemdaidary';
-                legendaryText.setAttribute('data-text', 'Liemdaidary');
-            });
-        }
+        });
     </script>
+    
+    <!-- Baffle.js CDN for glitch text effect -->
+    <script src="https://cdn.jsdelivr.net/npm/baffle@0.3.6/dist/baffle.min.js"></script>
 </body>
 </html>
