@@ -22,10 +22,13 @@ Made for students, teachers, and anyone who looks at LMS JSON data and thinks:
   🫠 So simple, even your goldfish can use it.
 
 - **Master Mode 🛠️**  
-  🔐 Password-protected admin panel with epic "UNLOCKED" animation.  
+  🔐 Google OAuth 2.0 authentication (secure login with your Google account).  
+  👤 Admin profile with Google avatar display.  
   📤 Upload files directly to Google Drive via drag-drop.  
-  🗑️ Delete files with one click.  
-  ☁️ Persistent storage across deployments (no more lost files).
+  👥 Track uploader information for each file.  
+  📄 Preview documents with built-in Ctrl+F search.  
+  🗑️ Delete files with one click (super admin only).  
+  ☁️ Persistent cloud storage across deployments.
 
 - **Customizable UI**  
   🌞 Light mode for the morning coffee people.  
@@ -48,11 +51,13 @@ Made for students, teachers, and anyone who looks at LMS JSON data and thinks:
 
 ### Master Mode 🛠️
 1. Click **Master Mode**.
-2. Enter password (hint: it's "admin123" but you didn't hear that from me).
-3. Watch the epic "UNLOCKED" animation.
-4. Upload files via drag-drop or button.
-5. Delete files you no longer need.
-6. Files sync to Google Drive instantly.
+2. Click **Login with Google** button.
+3. Authenticate with your Google account.
+4. Only authorized emails can access (configured in `.env`).
+5. Upload files via drag-drop or button (your name is tagged).
+6. View files with uploader info, preview documents, use Ctrl+F to search.
+7. Delete files you no longer need (super admin only).
+8. Files sync to Google Drive instantly.
 
 ---
 
