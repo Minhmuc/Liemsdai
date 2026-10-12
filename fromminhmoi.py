@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import inspect
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.background import BackgroundTask
 from starlette.middleware.sessions import SessionMiddleware
 from datetime import datetime
 import io
@@ -433,19 +434,22 @@ def download_data_file(filename):
             success = drive_manager.download_file_by_name(filename, temp_path)
             
             if success and os.path.exists(temp_path):
-                response = FileResponse(temp_path, filename=filename)
-                # Clean up temp file after sending
-                try:
-                    os.remove(temp_path)
-                except:
-                    pass
-                return response
+                return FileResponse(
+                    temp_path,
+                    filename=filename,
+                    background=BackgroundTask(os.remove, temp_path)
+                )
             else:
                 raise HTTPException(status_code=404, detail="File not found on Drive")
         else:
             # Download from local storage
-            return FileResponse(os.path.join(DATA_FOLDER, filename), filename=filename)
+            local_path = os.path.join(DATA_FOLDER, filename)
+            if not os.path.isfile(local_path):
+                raise HTTPException(status_code=404, detail="File not found")
+            return FileResponse(local_path, filename=filename)
     
+    except HTTPException:
+        raise
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
