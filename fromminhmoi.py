@@ -1,15 +1,21 @@
 import os
 import json
 import re
-from flask import Flask, render_template, request, jsonify, send_from_directory, abort, send_file, session, redirect, url_for, Response
-from werkzeug.middleware.proxy_fix import ProxyFix
+from functools import wraps
+from io import BytesIO
+from fastapi import FastAPI, File, Form, Request, UploadFile, Body, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+import inspect
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from datetime import datetime
 import io
 import zipfile
-from functools import wraps
 from google_drive_manager import GoogleDriveManager
 from dotenv import load_dotenv
-from authlib.integrations.flask_client import OAuth
+from authlib.integrations.starlette_client import OAuth
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,15 +32,16 @@ if not os.path.exists(DATA_FOLDER):
 if not os.path.exists(METADATA_FOLDER):
     os.makedirs(METADATA_FOLDER)
 
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
-
-# ProxyFix: Trust X-Forwarded-* headers from Render proxy
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app = FastAPI()
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts='*')
 
 # Load secret key from environment variable (IMPORTANT: Set this in .env file)
-app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-in-production')
-if app.secret_key == 'default-dev-key-change-in-production':
+secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-in-production')
+app.add_middleware(SessionMiddleware, secret_key=secret_key, max_age=60 * 60 * 24 * 7)
+templates = Jinja2Templates(directory='templates')
+app.mount('/static', StaticFiles(directory='static'), name='static')
+
+if secret_key == 'default-dev-key-change-in-production':
     print("⚠️ WARNING: Using default secret key. Set SECRET_KEY in .env file!")
 
 # Google OAuth Configuration
@@ -45,7 +52,7 @@ ADMIN_EMAILS = [email.strip() for email in ADMIN_EMAILS if email.strip()]
 SUPER_ADMIN_EMAIL = os.environ.get('SUPER_ADMIN_EMAIL', '').strip()
 
 # Initialize OAuth
-oauth = OAuth(app)
+oauth = OAuth()
 google = oauth.register(
     name='google',
     client_id=GOOGLE_CLIENT_ID,
@@ -102,19 +109,19 @@ def save_hidden_files(hidden_list):
     with open(HIDDEN_FILES_JSON, 'w', encoding='utf-8') as f:
         json.dump(hidden_list, f, ensure_ascii=False, indent=2)
 
-def is_super_admin():
+def is_super_admin(request: Request):
     """Kiểm tra xem user hiện tại có phải super admin không"""
     if not SUPER_ADMIN_EMAIL:
         return False
-    admin_email = session.get('admin_email', '')
+    admin_email = request.session.get('admin_email', '')
     return admin_email.lower() == SUPER_ADMIN_EMAIL.lower()
 
-def is_admin():
+def is_admin(request: Request):
     """Kiểm tra xem user có phải admin không"""
-    admin_email = session.get('admin_email', '')
+    admin_email = request.session.get('admin_email', '')
     return admin_email.lower() in [email.lower() for email in ADMIN_EMAILS]
 
-def get_visible_files():
+def get_visible_files(request: Request):
     """Lấy danh sách file mà user hiện tại được phép thấy"""
     if drive_manager:
         all_files = [f['name'] for f in drive_manager.list_files()]
@@ -122,7 +129,7 @@ def get_visible_files():
         all_files = [f for f in os.listdir(DATA_FOLDER) if os.path.isfile(os.path.join(DATA_FOLDER, f))]
     
     # Nếu là super admin (minhmuc), thấy tất cả file
-    if is_super_admin():
+    if is_super_admin(request):
         return all_files
     
     # Nếu không phải super admin, loại bỏ các file bị ẩn
@@ -317,18 +324,17 @@ def clean_html(raw_html):
     cleantext = re.sub(r'&nbsp;|&amp;|&quot;|&lt;|&gt;', ' ', cleantext)
     return cleantext.strip()
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    response = render_template('index.html')
+@app.api_route('/', methods=['GET', 'POST'])
+def index(request: Request):
+    response = templates.TemplateResponse(request=request, name='index.html')
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         if os.path.isfile(file_path):
             os.remove(file_path)
     return response
-@app.route('/save_json_code', methods=['POST'])
-def save_json_code():
-    data = request.get_json()
+@app.post('/save_json_code')
+async def save_json_code(data: dict = Body(...)):
     json_code = data.get('json_code')
     if json_code:
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
@@ -336,18 +342,14 @@ def save_json_code():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(json_code)
-        return jsonify(success=True, filename=filepath)
-    return jsonify(success=False)
+        return JSONResponse({'success': True, 'filename': filepath})
+    return JSONResponse({'success': False})
 
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return app.send_static_file(filename)
-
-@app.route('/ping')
+@app.get('/ping')
 def ping():
-    return "pong", 200
+    return Response(content="pong", status_code=200)
 
-@app.route('/test-drive')
+@app.get('/test-drive')
 def test_drive():
     """Endpoint to test Google Drive connection"""
     result = {
@@ -367,23 +369,20 @@ def test_drive():
             result['drive_connected'] = False
             result['error'] = str(e)
     
-    return jsonify(result)
+    return JSONResponse(result)
 
-import os
-from flask import send_from_directory, abort
+@app.get('/casual')
+def casual(request: Request):
+    return templates.TemplateResponse(request=request, name='casual.html')
 
-@app.route('/casual')
-def casual():
-    return render_template('casual.html')
-
-@app.route('/redirect-to-ad')
-def redirect_to_ad():
-    filename = request.args.get('file')
+@app.get('/redirect-to-ad')
+def redirect_to_ad(request: Request):
+    filename = request.query_params.get('file')
     if not filename:
-        abort(400, description="Filename required")
+        raise HTTPException(status_code=400, detail="Filename required")
     
     # Build callback URL
-    callback_url = request.url_root + 'casual?autodownload=true&file=' + filename
+    callback_url = str(request.url_for('casual')) + '?autodownload=true&file=' + filename
     
     # Create Shrinkme redirect URL
     shrinkme_api_key = '4aa2dedcdc780d528a0512535ac3fcd7b594743b'
@@ -402,7 +401,7 @@ def redirect_to_ad():
 </body>
 </html>'''
 
-@app.route('/api/data-files')
+@app.get('/api/data-files')
 def data_files():
     try:
         if drive_manager:
@@ -414,15 +413,15 @@ def data_files():
             files = os.listdir(DATA_FOLDER)
             files = [f for f in files if os.path.isfile(os.path.join(DATA_FOLDER, f))]
         
-        return jsonify(files)
+        return JSONResponse(files)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
-@app.route('/download/data/<path:filename>')
+@app.get('/download/data/{filename:path}')
 def download_data_file(filename):
     # Security check: prevent path traversal attacks
     if '..' in filename or filename.startswith('/'):
-        abort(400, description="Invalid filename")
+        raise HTTPException(status_code=400, detail="Invalid filename")
     
     try:
         if drive_manager:
@@ -434,7 +433,7 @@ def download_data_file(filename):
             success = drive_manager.download_file_by_name(filename, temp_path)
             
             if success and os.path.exists(temp_path):
-                response = send_file(temp_path, as_attachment=True, download_name=filename)
+                response = FileResponse(temp_path, filename=filename)
                 # Clean up temp file after sending
                 try:
                     os.remove(temp_path)
@@ -442,27 +441,27 @@ def download_data_file(filename):
                     pass
                 return response
             else:
-                abort(404, description="File not found on Drive")
+                raise HTTPException(status_code=404, detail="File not found on Drive")
         else:
             # Download from local storage
-            return send_from_directory(DATA_FOLDER, filename, as_attachment=True)
+            return FileResponse(os.path.join(DATA_FOLDER, filename), filename=filename)
     
     except FileNotFoundError:
-        abort(404, description="File not found")
+        raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
-        abort(500, description=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/download/data-multiple', methods=['POST'])
-def download_multiple_files():
+@app.post('/download/data-multiple')
+def download_multiple_files(data: dict = Body(...)):
     data_folder = 'Data'
-    files = request.json.get('files', [])
+    files = data.get('files', [])
     if not files:
-        return jsonify({'error': 'No files selected'}), 400
+        return JSONResponse({'error': 'No files selected'}, status_code=400)
 
     # Security check: prevent path traversal attacks
     for filename in files:
         if '..' in filename or filename.startswith('/'):
-            return jsonify({'error': 'Invalid filename detected'}), 400
+            return JSONResponse({'error': 'Invalid filename detected'}, status_code=400)
 
     memory_file = io.BytesIO()
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -471,20 +470,35 @@ def download_multiple_files():
             if os.path.isfile(file_path):
                 zf.write(file_path, arcname=filename)
             else:
-                return jsonify({'error': f'File not found: {filename}'}), 404
+                return JSONResponse({'error': f'File not found: {filename}'}, status_code=404)
     memory_file.seek(0)
-    return send_file(memory_file, attachment_filename='selected_files.zip', as_attachment=True)
+    return StreamingResponse(memory_file, media_type='application/zip', headers={
+        'Content-Disposition': 'attachment; filename="selected_files.zip"'
+    })
 
-@app.route('/dev', methods=['GET', 'POST'])
-def dev():
+class UploadedFileAdapter:
+    def __init__(self, filename, content):
+        self.filename = filename
+        self._content = content
+
+    def read(self):
+        return self._content
+
+    def save(self, filepath):
+        with open(filepath, 'wb') as output:
+            output.write(self._content)
+
+
+@app.api_route('/dev', methods=['GET', 'POST'])
+async def dev(request: Request, files: list[UploadFile] = File(default=[]),
+              json_code: str = Form(default=''), id: str = Form(default='')):
     questions = {}
     errors = []
     if request.method == 'POST':
-        files = request.files.getlist('file')  # Lấy danh sách tệp được chọn
-        json_code = request.form.get('json_code')  # Lấy JSON code từ form
-        id_filter = request.form.get('id')  # Lấy giá trị ID từ form
-        if files:
-            questions_file, errors_file = parse_questions(files=files, id_filter=id_filter)  # Thêm câu hỏi vào danh sách
+        uploaded_files = [UploadedFileAdapter(file.filename, await file.read()) for file in files]
+        id_filter = id  # Lấy giá trị ID từ form
+        if uploaded_files:
+            questions_file, errors_file = parse_questions(files=uploaded_files, id_filter=id_filter)  # Thêm câu hỏi vào danh sách
             questions.update({q['ID']: q for q in questions_file})
             errors.extend(errors_file)
         if json_code:
@@ -509,49 +523,66 @@ def dev():
         if os.path.isfile(file_path):
             os.remove(file_path)
     total_questions = len(sorted_questions)
-    return render_template('Dev.html', questions=sorted_questions, errors=errors, total_questions=total_questions)
+    return templates.TemplateResponse(request=request, name='Dev.html', context={
+        'questions': sorted_questions,
+        'errors': errors,
+        'total_questions': total_questions
+    })
 
 # Admin authentication decorator
 def admin_required(f):
+    def check_access(request):
+        return request is not None and request.session.get('admin_logged_in') and is_admin(request)
+
+    if inspect.iscoroutinefunction(f):
+        @wraps(f)
+        async def async_decorated_function(*args, **kwargs):
+            request = next((arg for arg in args if isinstance(arg, Request)), kwargs.get('request'))
+            if not check_access(request):
+                return RedirectResponse(url=str(request.url_for('admin_login')), status_code=303)
+            return await f(*args, **kwargs)
+        return async_decorated_function
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in') or not is_admin():
+        request = next((arg for arg in args if isinstance(arg, Request)), kwargs.get('request'))
+        if not check_access(request):
             # Redirect to OAuth login
-            return redirect(url_for('admin_login'))
+            return RedirectResponse(url=str(request.url_for('admin_login')), status_code=303)
         return f(*args, **kwargs)
     return decorated_function
 
 # Admin login page - Show login page with Google button
-@app.route('/admin/login')
-def admin_login():
+@app.get('/admin/login')
+def admin_login(request: Request, error: str = ''):
     """Show login page with Google OAuth button"""
-    error = request.args.get('error')
     error_message = None
     if error == 'access_denied':
         error_message = '🚫 Từ chối truy cập: Bạn là ai?'
     elif error == 'oauth_failed':
         error_message = '❌ Lỗi xác thực: Không thể kết nối với Google'
-    return render_template('admin_login.html', error=error_message)
+    return templates.TemplateResponse(request=request, name='admin_login.html', context={'error': error_message})
 
 # Admin OAuth redirect
-@app.route('/admin/oauth/login')
-def admin_oauth_login():
+@app.get('/admin/oauth/login')
+async def admin_oauth_login(request: Request):
     """Redirect to Google OAuth login"""
     # Dynamic redirect URI based on request
-    redirect_uri = url_for('admin_callback', _external=True)
-    return google.authorize_redirect(redirect_uri)
+    redirect_uri = str(request.url_for('admin_callback'))
+    return await google.authorize_redirect(request, redirect_uri)
 
 # Admin OAuth callback
-@app.route('/admin/callback')
-def admin_callback():
+@app.get('/admin/callback')
+async def admin_callback(request: Request):
     """Handle Google OAuth callback"""
     try:
-        token = google.authorize_access_token()
+        token = await google.authorize_access_token(request)
         user_info = token.get('userinfo')
         
         if not user_info:
-            return render_template('admin_login_error.html', 
-                                 error='Không thể lấy thông tin người dùng từ Google')
+            return templates.TemplateResponse(request=request, name='admin_login_error.html', context={
+                'error': 'Không thể lấy thông tin người dùng từ Google'
+            })
         
         email = user_info.get('email')
         name = user_info.get('name')
@@ -559,68 +590,66 @@ def admin_callback():
         
         # Check if user is authorized admin
         if email.lower() not in [e.lower() for e in ADMIN_EMAILS]:
-            return redirect(url_for('admin_login', error='access_denied'))
+            return RedirectResponse(url=str(request.url_for('admin_login')) + '?error=access_denied', status_code=303)
         
         # Set session
-        session['admin_logged_in'] = True
-        session['admin_email'] = email
-        session['admin_name'] = name
-        session['admin_picture'] = picture
+        request.session['admin_logged_in'] = True
+        request.session['admin_email'] = email
+        request.session['admin_name'] = name
+        request.session['admin_picture'] = picture
         
-        return redirect(url_for('admin'))
+        return RedirectResponse(url=str(request.url_for('admin')), status_code=303)
         
     except Exception as e:
         print(f"OAuth callback error: {e}")
-        return redirect(url_for('admin_login', error='oauth_failed'))
+        return RedirectResponse(url=str(request.url_for('admin_login')) + '?error=oauth_failed', status_code=303)
 
 # Admin logout
-@app.route('/admin/logout')
-def admin_logout():
-    session.clear()
-    return redirect(url_for('admin_login'))
+@app.get('/admin/logout')
+def admin_logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url=str(request.url_for('admin_login')), status_code=303)
 
 # Admin dashboard
-@app.route('/admin')
+@app.get('/admin')
 @admin_required
-def admin():
-    admin_email = session.get('admin_email', '')
-    admin_name = session.get('admin_name', 'Admin')
-    admin_picture = session.get('admin_picture', '')
+def admin(request: Request):
+    admin_email = request.session.get('admin_email', '')
+    admin_name = request.session.get('admin_name', 'Admin')
+    admin_picture = request.session.get('admin_picture', '')
     
     # Get visible files based on user permission
-    visible_files = get_visible_files()
-    hidden_files = load_hidden_files() if is_super_admin() else []
+    visible_files = get_visible_files(request)
+    hidden_files = load_hidden_files() if is_super_admin(request) else []
     
-    return render_template(
-        'admin.html', 
-        admin_name=admin_name,
-        admin_email=admin_email,
-        admin_picture=admin_picture,
-        is_super_admin=is_super_admin(),
-        hidden_files=hidden_files
-    )
+    return templates.TemplateResponse(request=request, name='admin.html', context={
+        'admin_name': admin_name,
+        'admin_email': admin_email,
+        'admin_picture': admin_picture,
+        'is_super_admin': is_super_admin(request),
+        'hidden_files': hidden_files
+    })
 
 # Admin upload file
-@app.route('/admin/upload', methods=['POST'])
+@app.post('/admin/upload')
 @admin_required
-def admin_upload():
-    if 'files' not in request.files:
-        return jsonify({'error': 'No files provided'}), 400
-    
-    files = request.files.getlist('files')
+async def admin_upload(request: Request, files: list[UploadFile] = File(default=[])):
+    if not files:
+        return JSONResponse({'error': 'No files provided'}, status_code=400)
     uploaded_files = []
     errors = []
     
     # Get uploader info
-    admin_name = session.get('admin_name', 'Admin')
+    admin_name = request.session.get('admin_name', 'Admin')
     uploader_name = admin_name
     
     for file in files:
         if file and file.filename:
             try:
+                uploaded_file = UploadedFileAdapter(file.filename, await file.read())
                 if drive_manager:
                     # Upload to Google Drive with uploader info
-                    file_id = drive_manager.upload_file_object(file, file.filename, uploader_name)
+                    file_id = drive_manager.upload_file_object(uploaded_file, file.filename, uploader_name)
                     if file_id:
                         uploaded_files.append(file.filename)
                     else:
@@ -628,26 +657,26 @@ def admin_upload():
                 else:
                     # Upload to local storage
                     filepath = os.path.join(DATA_FOLDER, file.filename)
-                    file.save(filepath)
+                    uploaded_file.save(filepath)
                     uploaded_files.append(file.filename)
                     # Save metadata for local files
                     save_file_metadata(file.filename, uploader_name)
             except Exception as e:
                 errors.append(f"{file.filename}: {str(e)}")
     
-    return jsonify({
+    return JSONResponse({
         'success': len(uploaded_files),
         'uploaded': uploaded_files,
         'errors': errors
     })
 
 # Admin list files
-@app.route('/admin/files')
+@app.get('/admin/files')
 @admin_required
-def admin_files():
+def admin_files(request: Request):
     try:
-        visible_files = get_visible_files()
-        hidden_files = load_hidden_files() if is_super_admin() else []
+        visible_files = get_visible_files(request)
+        hidden_files = load_hidden_files() if is_super_admin(request) else []
         
         files = []
         
@@ -656,7 +685,7 @@ def admin_files():
             drive_files = drive_manager.list_files()
             for file in drive_files:
                 # Skip hidden files if not super admin
-                if file['name'] not in visible_files and not is_super_admin():
+                if file['name'] not in visible_files and not is_super_admin(request):
                     continue
                 
                 # Get uploader from properties
@@ -674,7 +703,7 @@ def admin_files():
             # List from local storage
             for filename in os.listdir(DATA_FOLDER):
                 # Skip hidden files if not super admin
-                if filename not in visible_files and not is_super_admin():
+                if filename not in visible_files and not is_super_admin(request):
                     continue
                     
                 filepath = os.path.join(DATA_FOLDER, filename)
@@ -690,49 +719,48 @@ def admin_files():
                         'hidden': filename in hidden_files
                     })
         
-        return jsonify(files)
+        return JSONResponse(files)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 # Admin delete file
-@app.route('/admin/delete/<filename>', methods=['DELETE'])
+@app.delete('/admin/delete/{filename}')
 @admin_required
-def admin_delete(filename):
+def admin_delete(request: Request, filename: str):
     try:
         if '..' in filename or filename.startswith('/'):
-            return jsonify({'error': 'Invalid filename'}), 400
+            return JSONResponse({'error': 'Invalid filename'}, status_code=400)
         
         if drive_manager:
             # Delete from Google Drive
             success = drive_manager.delete_file_by_name(filename)
             if success:
-                return jsonify({'success': True, 'message': f'Deleted {filename}'})
+                return JSONResponse({'success': True, 'message': f'Deleted {filename}'})
             else:
-                return jsonify({'error': 'File not found or delete failed'}), 404
+                return JSONResponse({'error': 'File not found or delete failed'}, status_code=404)
         else:
             # Delete from local storage
             filepath = os.path.join(DATA_FOLDER, filename)
             if os.path.isfile(filepath):
                 os.remove(filepath)
-                return jsonify({'success': True, 'message': f'Deleted {filename}'})
+                return JSONResponse({'success': True, 'message': f'Deleted {filename}'})
             else:
-                return jsonify({'error': 'File not found'}), 404
+                return JSONResponse({'error': 'File not found'}, status_code=404)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 # Toggle file visibility (super admin only)
-@app.route('/admin/toggle_visibility', methods=['POST'])
+@app.post('/admin/toggle_visibility')
 @admin_required
-def toggle_file_visibility():
+def toggle_file_visibility(request: Request, data: dict = Body(...)):
     """Toggle ẩn/hiện file - chỉ super admin (minhmuc) mới làm được"""
-    if not is_super_admin():
-        return jsonify({'success': False, 'error': 'Chỉ minhmuc mới có quyền ẩn/hiện file'}), 403
+    if not is_super_admin(request):
+        return JSONResponse({'success': False, 'error': 'Chỉ minhmuc mới có quyền ẩn/hiện file'}, status_code=403)
     
-    data = request.get_json()
     filename = data.get('filename')
     
     if not filename:
-        return jsonify({'success': False, 'error': 'Missing filename'}), 400
+        return JSONResponse({'success': False, 'error': 'Missing filename'}, status_code=400)
     
     hidden_files = load_hidden_files()
     
@@ -747,7 +775,7 @@ def toggle_file_visibility():
     
     save_hidden_files(hidden_files)
     
-    return jsonify({
+    return JSONResponse({
         'success': True,
         'action': action,
         'filename': filename,
@@ -755,23 +783,23 @@ def toggle_file_visibility():
     })
 
 # Get hidden files list (super admin only)
-@app.route('/admin/hidden_files', methods=['GET'])
+@app.get('/admin/hidden_files')
 @admin_required
-def get_hidden_files_route():
+def get_hidden_files_route(request: Request):
     """Lấy danh sách file ẩn - chỉ super admin thấy được"""
-    if not is_super_admin():
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    if not is_super_admin(request):
+        return JSONResponse({'success': False, 'error': 'Unauthorized'}, status_code=403)
     
     hidden_files = load_hidden_files()
-    return jsonify({'success': True, 'hidden_files': hidden_files})
+    return JSONResponse({'success': True, 'hidden_files': hidden_files})
 
 # SEO Routes
-@app.route('/robots.txt')
+@app.get('/robots.txt')
 def robots():
     """Serve robots.txt file"""
-    return send_from_directory('.', 'robots.txt')
+    return FileResponse('robots.txt')
 
-@app.route('/sitemap.xml')
+@app.get('/sitemap.xml')
 def sitemap():
     """Generate dynamic sitemap.xml"""
     pages = []
@@ -813,18 +841,17 @@ def sitemap():
     
     sitemap_xml += '</urlset>'
     
-    return Response(sitemap_xml, mimetype='text/xml')
+    return Response(sitemap_xml, media_type='text/xml')
 
 # Admin download multiple files as zip
-@app.route('/admin/download-multiple', methods=['POST'])
+@app.post('/admin/download-multiple')
 @admin_required
-def admin_download_multiple():
+def admin_download_multiple(request: Request, data: dict = Body(...)):
     try:
-        data = request.get_json()
         filenames = data.get('files', [])
         
         if not filenames:
-            return jsonify({'error': 'No files specified'}), 400
+            return JSONResponse({'error': 'No files specified'}, status_code=400)
         
         # Create zip file in memory
         memory_file = io.BytesIO()
@@ -851,15 +878,13 @@ def admin_download_multiple():
                     continue
         
         memory_file.seek(0)
-        return send_file(
-            memory_file,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=f'files_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
-        )
+        return StreamingResponse(memory_file, media_type='application/zip', headers={
+            'Content-Disposition': f'attachment; filename="files_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip"'
+        })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    uvicorn.run(app, host='0.0.0.0', port=port)

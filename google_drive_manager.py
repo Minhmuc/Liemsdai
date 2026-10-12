@@ -124,10 +124,10 @@ class GoogleDriveManager:
     
     def upload_file_object(self, file_object, filename, uploader=None):
         """
-        Upload a file from memory (Flask file object)
+        Upload a file from memory (FastAPI upload adapter)
         
         Args:
-            file_object: File object from Flask request.files
+            file_object: File-like object supplied by the FastAPI upload route
             filename: Name to save on Drive
             uploader: Name of person uploading (optional)
         
