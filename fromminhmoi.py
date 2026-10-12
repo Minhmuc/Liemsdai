@@ -483,14 +483,18 @@ def download_multiple_files(data: dict = Body(...)):
 class UploadedFileAdapter:
     def __init__(self, filename, content):
         self.filename = filename
-        self._content = content
+        self._file = BytesIO(content)
 
-    def read(self):
-        return self._content
+    def read(self, size=-1):
+        return self._file.read(size)
+
+    def seek(self, offset, whence=0):
+        return self._file.seek(offset, whence)
 
     def save(self, filepath):
         with open(filepath, 'wb') as output:
-            output.write(self._content)
+            self.seek(0)
+            output.write(self.read())
 
 
 @app.api_route('/dev', methods=['GET', 'POST'])
@@ -891,4 +895,4 @@ def admin_download_multiple(request: Request, data: dict = Body(...)):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get('PORT', 5000))
-    uvicorn.run(app, host='0.0.0.0', port=port)
+    uvicorn.run(app, host='127.0.0.1', port=port)
