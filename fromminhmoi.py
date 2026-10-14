@@ -894,5 +894,5 @@ def admin_download_multiple(request: Request, data: dict = Body(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     uvicorn.run(app, host='127.0.0.1', port=port)
