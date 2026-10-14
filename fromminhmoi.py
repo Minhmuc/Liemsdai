@@ -187,7 +187,7 @@ def parse_questions(files=None, json_codes=None, id_filter=None):
     def process_question(question, idx):
         """Process a single question based on its type"""
         question_id = question['id']
-        if id_filter and question_id != id_filter:
+        if id_filter and str(question_id) != str(id_filter):
             return None, idx
             
         question_type = question.get('question_type', 'radio')
@@ -324,10 +324,6 @@ def clean_html(raw_html):
     cleantext = re.sub(cleanr, '', raw_html)
     cleantext = re.sub(r'&nbsp;|&amp;|&quot;|&lt;|&gt;', ' ', cleantext)
     return cleantext.strip()
-
-@app.head('/')
-def index_head():
-    return Response(status_code=200)
 
 @app.api_route('/', methods=['GET', 'POST'])
 def index(request: Request):
@@ -502,7 +498,7 @@ class UploadedFileAdapter:
 
 
 @app.api_route('/dev', methods=['GET', 'POST'])
-async def dev(request: Request, files: list[UploadFile] = File(default=[]),
+async def dev(request: Request, files: list[UploadFile] = File(default=[], alias='file'),
               json_code: str = Form(default=''), id: str = Form(default='')):
     questions = {}
     errors = []
