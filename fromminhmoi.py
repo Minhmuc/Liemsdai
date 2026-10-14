@@ -325,6 +325,10 @@ def clean_html(raw_html):
     cleantext = re.sub(r'&nbsp;|&amp;|&quot;|&lt;|&gt;', ' ', cleantext)
     return cleantext.strip()
 
+@app.head('/')
+def index_head():
+    return Response(status_code=200)
+
 @app.api_route('/', methods=['GET', 'POST'])
 def index(request: Request):
     response = templates.TemplateResponse(request=request, name='index.html')
