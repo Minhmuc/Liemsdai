@@ -1443,13 +1443,16 @@
                 }
 
                 // Setup search functionality after content loaded
+                if (!document.body.contains(modal)) return;
                 setupPreviewSearch(contentArea);
                 
             } catch (error) {
                 console.error('Preview error:', error);
-                alert('❌ Lỗi preview: ' + error.message);
                 const modals = document.querySelectorAll('.preview-modal');
                 modals.forEach(m => m.remove());
+                if (modals.length > 0) {
+                    alert('❌ Lỗi preview: ' + error.message);
+                }
             }
         }
 
@@ -1460,6 +1463,8 @@
         function setupPreviewSearch(contentArea) {
             const searchInput = document.getElementById('searchInput');
             const matchCounter = document.getElementById('matchCounter');
+
+            if (!searchInput || !matchCounter || !document.body.contains(contentArea)) return;
             
             // Store reference to content area
             window.previewContentArea = contentArea;
