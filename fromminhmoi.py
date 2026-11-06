@@ -346,7 +346,7 @@ async def save_json_code(data: dict = Body(...)):
         return JSONResponse({'success': True, 'filename': filepath})
     return JSONResponse({'success': False})
 
-@app.get('/ping')
+@app.api_route('/ping', methods=['GET', 'HEAD'])
 def ping():
     return Response(content="pong", status_code=200)
 
