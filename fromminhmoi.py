@@ -14,6 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from datetime import datetime
 import io
 import zipfile
+from urllib.parse import urlencode
 from google_drive_manager import GoogleDriveManager
 from dotenv import load_dotenv
 from authlib.integrations.starlette_client import OAuth
@@ -382,25 +383,21 @@ def redirect_to_ad(request: Request):
     if not filename:
         raise HTTPException(status_code=400, detail="Filename required")
     
-    # Build callback URL
-    callback_url = str(request.url_for('casual')) + '?autodownload=true&file=' + filename
+    # Encode the filename as a query parameter so special characters survive
+    # the round trip through the ad redirect service.
+    callback_url = str(request.url_for('casual')) + '?' + urlencode({
+        'autodownload': 'true',
+        'file': filename,
+    })
     
     # Create Shrinkme redirect URL
     shrinkme_api_key = '4aa2dedcdc780d528a0512535ac3fcd7b594743b'
-    shrinkme_url = f'https://shrinkme.io/st?api={shrinkme_api_key}&url={callback_url}'
-    
-    # Render redirect page
-    return f'''<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="refresh" content="0;url={shrinkme_url}">
-    <title>Redirecting...</title>
-</head>
-<body>
-    <p>Đang chuyển hướng đến trang quảng cáo...</p>
-    <p>Nếu không tự động chuyển, <a href="{shrinkme_url}">nhấn vào đây</a></p>
-</body>
-</html>'''
+    shrinkme_url = 'https://shrinkme.io/st?' + urlencode({
+        'api': shrinkme_api_key,
+        'url': callback_url,
+    })
+
+    return RedirectResponse(url=shrinkme_url)
 
 @app.get('/api/data-files')
 def data_files():
