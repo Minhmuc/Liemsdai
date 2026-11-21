@@ -326,25 +326,19 @@ optionDiv.addEventListener('click', () => {
                     // Clear the parameter from URL
                     window.history.replaceState({}, document.title, '/casual');
                     
-                    // Auto-download the file
+                    // Navigate in the current tab to the attachment endpoint.
+                    // This avoids opening a synthetic blank tab after the ad callback.
                     setTimeout(() => {
                         const downloadUrl = '/download/data/' + encodeURIComponent(fileToDownload);
-                        const a = document.createElement('a');
-                        a.href = downloadUrl;
-                        a.download = fileToDownload;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        
-                        // Show custom styled notification
-                        showNotification('✅ Đang tải file: ' + fileToDownload);
+                        showNotification('Nếu file chưa tự tải, hãy bấm nút bên dưới.', downloadUrl, fileToDownload);
+                        window.location.assign(downloadUrl);
                     }, 500);
                 }
             }
         };
 
         // Custom notification function
-        function showNotification(message) {
+        function showNotification(message, downloadUrl, fileName) {
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed;
@@ -362,7 +356,18 @@ optionDiv.addEventListener('click', () => {
                 z-index: 10000;
                 animation: fadeInScale 0.3s ease-out;
             `;
-            notification.textContent = message;
+            const messageText = document.createElement('div');
+            messageText.textContent = message;
+            notification.appendChild(messageText);
+
+            if (downloadUrl) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = downloadUrl;
+                downloadLink.download = fileName;
+                downloadLink.textContent = 'Tải file';
+                downloadLink.style.cssText = 'display:inline-block;margin-top:16px;padding:10px 18px;border-radius:6px;background:var(--button-bg-color);color:var(--button-text-color);text-decoration:none;';
+                notification.appendChild(downloadLink);
+            }
             
             // Add animation keyframes
             if (!document.getElementById('notification-style')) {
@@ -395,11 +400,11 @@ optionDiv.addEventListener('click', () => {
             
             document.body.appendChild(notification);
             
-            // Auto remove after 3 seconds
+            // Keep the manual download link visible long enough to use it.
             setTimeout(() => {
                 notification.style.animation = 'fadeOutScale 0.3s ease-out';
                 setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            }, 15000);
         }
     </script>
 </body>
