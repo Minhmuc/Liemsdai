@@ -15,6 +15,7 @@ from datetime import datetime
 import io
 import zipfile
 from urllib.parse import urlencode
+import requests
 from google_drive_manager import GoogleDriveManager
 from dotenv import load_dotenv
 from authlib.integrations.starlette_client import OAuth
@@ -68,6 +69,8 @@ google = oauth.register(
 # Google Drive setup
 USE_GOOGLE_DRIVE = os.environ.get('USE_GOOGLE_DRIVE', 'false').lower() == 'true'
 DRIVE_FOLDER_ID = os.environ.get('DRIVE_FOLDER_ID', None)
+PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').rstrip('/')
+SHRINKME_API_KEY = os.environ.get('SHRINKME_API_KEY', '').strip()
 
 # Metadata functions
 def save_file_metadata(filename, uploader):
@@ -326,8 +329,13 @@ def clean_html(raw_html):
     cleantext = re.sub(r'&nbsp;|&amp;|&quot;|&lt;|&gt;', ' ', cleantext)
     return cleantext.strip()
 
-@app.api_route('/', methods=['GET', 'POST'])
+@app.api_route('/', methods=['GET', 'POST', 'HEAD'])
 def index(request: Request):
+    # Health checks may send HEAD requests; answer without rendering the page
+    # or running the upload cleanup performed for normal page requests.
+    if request.method == 'HEAD':
+        return Response(status_code=200)
+
     response = templates.TemplateResponse(request=request, name='index.html')
     # Xóa tất cả các tệp trong thư mục uploaded
     for filename in os.listdir(UPLOAD_FOLDER):
@@ -382,22 +390,39 @@ def redirect_to_ad(request: Request):
     filename = request.query_params.get('file')
     if not filename:
         raise HTTPException(status_code=400, detail="Filename required")
+    if not SHRINKME_API_KEY:
+        raise HTTPException(status_code=503, detail="SHRINKME_API_KEY is not configured")
     
     # Encode the filename as a query parameter so special characters survive
     # the round trip through the ad redirect service.
-    callback_url = str(request.url_for('casual')) + '?' + urlencode({
+    casual_url = f'{PUBLIC_BASE_URL}/casual' if PUBLIC_BASE_URL else str(request.url_for('casual'))
+    callback_url = casual_url + '?' + urlencode({
         'autodownload': 'true',
         'file': filename,
     })
     
-    # Create Shrinkme redirect URL
-    shrinkme_api_key = '4aa2dedcdc780d528a0512535ac3fcd7b594743b'
-    shrinkme_url = 'https://shrinkme.io/st?' + urlencode({
-        'api': shrinkme_api_key,
-        'url': callback_url,
-    })
+    # Use ShrinkMe's Developer API to create a short link for this callback.
+    try:
+        api_response = requests.get(
+            'https://shrinkme.io/api',
+            params={'api': SHRINKME_API_KEY, 'url': callback_url},
+            timeout=15,
+        )
+        api_response.raise_for_status()
+        api_result = api_response.json()
+    except requests.RequestException as error:
+        raise HTTPException(status_code=502, detail='Could not contact ShrinkMe API') from error
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail='ShrinkMe API returned invalid JSON') from error
 
-    return RedirectResponse(url=shrinkme_url)
+    shortened_url = api_result.get('shortenedUrl')
+    if api_result.get('status') != 'success' or not shortened_url:
+        raise HTTPException(
+            status_code=502,
+            detail=api_result.get('message') or 'ShrinkMe API did not return a short link',
+        )
+
+    return RedirectResponse(url=shortened_url, status_code=302)
 
 @app.get('/api/data-files')
 def data_files():

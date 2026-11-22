@@ -90,6 +90,7 @@ pip install -r requirements.txt
 # USE_GOOGLE_DRIVE=true
 # DRIVE_FOLDER_ID=your_folder_id
 # ADMIN_PASSWORD=your_password
-# SHRINKME_API_KEY=your_api_key
+# SHRINKME_API_KEY=your_shrinkme_developer_api_token
+# PUBLIC_BASE_URL=https://lms.liemsdai.is-best.net
 
 python fromminhmoi.py
